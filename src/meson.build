@@ -1,7 +1,8 @@
 le_bon_mot_sources = [
   'main.c',
+  'le_bon_mot.c',
   'le_bon_mot-window.c',
-    'le_bon_mot-application.c',
+  'le_bon_mot-application.c',
   ]
 
 le_bon_mot_deps = [

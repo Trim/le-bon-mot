@@ -18,6 +18,7 @@
 
 #include "le_bon_mot-config.h"
 #include "le_bon_mot-window.h"
+#include "le_bon_mot.h"
 
 struct _LeBonMotWindow
 {
@@ -25,7 +26,7 @@ struct _LeBonMotWindow
 
   /* Template widgets */
   GtkHeaderBar        *header_bar;
-  GtkLabel            *label;
+  GtkGrid             *game_grid;
 };
 
 G_DEFINE_TYPE (LeBonMotWindow, le_bon_mot_window, GTK_TYPE_APPLICATION_WINDOW)
@@ -37,11 +38,15 @@ le_bon_mot_window_class_init (LeBonMotWindowClass *klass)
 
   gtk_widget_class_set_template_from_resource (widget_class, "/ch/adorsaz/LeBonMot/le_bon_mot-window.ui");
   gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, header_bar);
-  gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, label);
+  gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, game_grid);
 }
 
 static void
 le_bon_mot_window_init (LeBonMotWindow *self)
 {
   gtk_widget_init_template (GTK_WIDGET (self));
+
+  LeBonMot *le_bon_mot = le_bon_mot_init();
+  le_bon_mot_show_board (le_bon_mot, self->game_grid);
 }
+

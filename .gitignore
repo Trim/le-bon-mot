@@ -1,0 +1,4 @@
+# clangd store cache there
+.cache
+# build directories
+build

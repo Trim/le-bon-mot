@@ -43,15 +43,12 @@ le_bon_mot_window_dispose (GObject *gobject)
 }
 
 static void
-le_bon_mot_window_finalize (GObject *gobject)
-{
-  G_OBJECT_CLASS (le_bon_mot_window_parent_class)->finalize (gobject);
-}
-
-static void
 le_bon_mot_window_class_init (LeBonMotWindowClass *klass)
 {
+  GObjectClass *g_object_class = G_OBJECT_CLASS(klass);
   GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
+
+  g_object_class->dispose = le_bon_mot_window_dispose;
 
   gtk_widget_class_set_template_from_resource (widget_class, "/ch/adorsaz/LeBonMot/le_bon_mot-window.ui");
   gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, header_bar);

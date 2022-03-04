@@ -52,18 +52,8 @@ le_bon_mot_engine_dispose (GObject *gobject)
 {
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private (LE_BON_MOT_ENGINE (gobject));
 
-  // Dispose the word
-  g_clear_object (&priv->word);
-  // Dispose the board
-  for (guint rowIndex = 0; rowIndex < priv->board->len; rowIndex +=1 ) {
-    GPtrArray *row = g_ptr_array_index(priv->board, rowIndex);
-    for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
-      Letter *letter = g_ptr_array_index(row, columnIndex);
-      g_free(letter);
-    }
-    g_clear_object(&row);
-  }
-  g_clear_object(&priv->board);
+  // Board is initialized to cascade unref to rows and free letters
+  g_ptr_array_unref(priv->board);
 
   G_OBJECT_CLASS (le_bon_mot_engine_parent_class)->dispose (gobject);
 }
@@ -71,11 +61,20 @@ le_bon_mot_engine_dispose (GObject *gobject)
 static void
 le_bon_mot_engine_finalize (GObject *gobject)
 {
+  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private (LE_BON_MOT_ENGINE (gobject));
+
+  // Word
+  g_string_free (priv->word, TRUE);
+
   G_OBJECT_CLASS (le_bon_mot_engine_parent_class)->finalize (gobject);
 }
 
 static void
 le_bon_mot_engine_class_init(LeBonMotEngineClass *klass) {
+  GObjectClass *g_object_class = G_OBJECT_CLASS(klass);
+
+  g_object_class->finalize = le_bon_mot_engine_finalize;
+  g_object_class->dispose = le_bon_mot_engine_dispose;
 }
 
 static void
@@ -91,10 +90,17 @@ static GString *le_bon_mot_engine_init_word() {
   return g_string_new("animal");
 }
 
+void le_bon_mot_engine_destroy_row(gpointer data) {
+  g_ptr_array_unref(data);
+}
+
 static GPtrArray *le_bon_mot_engine_init_board(GString *word) {
-  GPtrArray *board = g_ptr_array_sized_new(LE_BON_MOT_ENGINE_ROWS);
+  GPtrArray *board = g_ptr_array_new_full(
+      LE_BON_MOT_ENGINE_ROWS,
+      le_bon_mot_engine_destroy_row
+  );
   for (guint rowIndex = 0; rowIndex < LE_BON_MOT_ENGINE_ROWS; rowIndex += 1) {
-    GPtrArray *row = g_ptr_array_sized_new(word->len);
+    GPtrArray *row = g_ptr_array_new_full(word->len, g_free);
     for (guint columnIndex = 0; columnIndex < word->len; columnIndex += 1) {
       Letter *letter = g_new(Letter, 1);
       if (rowIndex == 0 && columnIndex == 0) {

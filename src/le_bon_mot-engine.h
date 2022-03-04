@@ -1,4 +1,4 @@
-/* le_bon_mot-application.c
+/* le_bon_mot-engine.h
  *
  * Copyright 2022 Adrien Dorsaz
  *
@@ -18,17 +18,23 @@
 
 #pragma once
 
+#include <glib-object.h>
 #include "glib-2.0/glib.h"
 #include "gtk/gtk.h"
 
 G_BEGIN_DECLS
 
-typedef struct {
-  GString *word;
-  GArray *board;
-} LeBonMot;
+/*
+ * Type declaration.
+ * */
+#define LE_BON_MOT_TYPE_ENGINE le_bon_mot_engine_get_type ()
+G_DECLARE_FINAL_TYPE(LeBonMotEngine, le_bon_mot_engine, LE_BON_MOT, ENGINE, GObject);
 
-LeBonMot *le_bon_mot_init();
-void le_bon_mot_show_board(LeBonMot* le_bon_mot, GtkGrid *grid);
+/*
+ * Method definitions
+ * */
+LeBonMotEngine *le_bon_mot_engine_new(void);
+void le_bon_mot_engine_show_board (LeBonMotEngine *self,
+                                   GtkGrid        *grid);
 
 G_END_DECLS

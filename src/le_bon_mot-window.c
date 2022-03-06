@@ -20,6 +20,8 @@
 #include "le_bon_mot-window.h"
 #include "le_bon_mot-engine.h"
 
+static void le_bon_mot_window_display_board ();
+
 struct _LeBonMotWindow
 {
   GtkApplicationWindow  parent_instance;
@@ -61,6 +63,23 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   gtk_widget_init_template (GTK_WIDGET (self));
 
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
-  le_bon_mot_engine_show_board (self->engine, self->game_grid);
+  le_bon_mot_window_display_board(self);
 }
 
+static void
+le_bon_mot_window_display_board (LeBonMotWindow *self)
+{
+  g_return_if_fail(LE_BON_MOT_IS_WINDOW(self));
+
+  GPtrArray* board = le_bon_mot_engine_get_board_state(self->engine);
+
+  for (guint rowIndex = 0; rowIndex < board->len; rowIndex +=1 ) {
+    GPtrArray *row = g_ptr_array_index(board, rowIndex);
+    for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
+      LeBonMotLetter *letter = g_ptr_array_index(row, columnIndex);
+      GString *label = g_string_new("");
+      g_string_append_c(label, letter->letter);
+      gtk_grid_attach(self->game_grid, gtk_label_new(label->str), columnIndex, rowIndex, 1, 1);
+    }
+  }
+}

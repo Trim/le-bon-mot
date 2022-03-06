@@ -20,20 +20,8 @@
 
 const guint LE_BON_MOT_ENGINE_ROWS = 6;
 
-typedef enum {
-  LETTER_UNKOWN,
-  LETTER_NOT_PRESENT,
-  LETTER_PRESENT,
-  LETTER_WELL_PLACED,
-} LetterState;
-
-typedef struct {
-  gchar letter;
-  LetterState state;
-} Letter;
-
-static GString *le_bon_mot_engine_init_word();
-static GPtrArray *le_bon_mot_engine_init_board(GString *word);
+static GString *le_bon_mot_engine_word_init();
+static GPtrArray *le_bon_mot_engine_board_init(GString *word);
 
 typedef struct {
   GString *word;
@@ -81,34 +69,34 @@ static void
 le_bon_mot_engine_init(LeBonMotEngine *self) {
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  priv->word = le_bon_mot_engine_init_word();
-  priv->board = le_bon_mot_engine_init_board(priv->word); 
+  priv->word = le_bon_mot_engine_word_init();
+  priv->board = le_bon_mot_engine_board_init(priv->word); 
 }
 
-static GString *le_bon_mot_engine_init_word() {
+static GString *le_bon_mot_engine_word_init() {
   // TODO use a dictionary and some randomness
   return g_string_new("animal");
 }
 
-void le_bon_mot_engine_destroy_row(gpointer data) {
+static void le_bon_mot_engine_board_destroy_row(gpointer data) {
   g_ptr_array_unref(data);
 }
 
-static GPtrArray *le_bon_mot_engine_init_board(GString *word) {
+static GPtrArray *le_bon_mot_engine_board_init(GString *word) {
   GPtrArray *board = g_ptr_array_new_full(
       LE_BON_MOT_ENGINE_ROWS,
-      le_bon_mot_engine_destroy_row
+      le_bon_mot_engine_board_destroy_row
   );
   for (guint rowIndex = 0; rowIndex < LE_BON_MOT_ENGINE_ROWS; rowIndex += 1) {
     GPtrArray *row = g_ptr_array_new_full(word->len, g_free);
     for (guint columnIndex = 0; columnIndex < word->len; columnIndex += 1) {
-      Letter *letter = g_new(Letter, 1);
+      LeBonMotLetter *letter = g_new(LeBonMotLetter, 1);
       if (rowIndex == 0 && columnIndex == 0) {
         letter->letter = word->str[0];
-        letter->state = LETTER_WELL_PLACED;
+        letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
       } else {
         letter->letter = '_';
-        letter->state = LETTER_UNKOWN;
+        letter->state = LE_BON_MOT_LETTER_UNKOWN;
       }
       g_ptr_array_add(row, letter);
     }
@@ -117,18 +105,24 @@ static GPtrArray *le_bon_mot_engine_init_board(GString *word) {
   return board;
 }
 
-void le_bon_mot_engine_show_board(LeBonMotEngine* self, GtkGrid *grid) {
-  g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
+static gpointer le_bon_mot_engine_board_copy_letter(gconstpointer src, gpointer data)
+{
+  LeBonMotLetter *copy = g_new(LeBonMotLetter, 1);
+  const LeBonMotLetter *letter = src;
+  copy->letter = letter->letter;
+  copy->found = letter->found;
+  copy->state = letter->state;
+  return copy;
+}
 
+static gpointer le_bon_mot_engine_board_copy_row (gconstpointer src, gpointer data)
+{
+  return g_ptr_array_copy((GPtrArray *) src, le_bon_mot_engine_board_copy_letter, NULL);
+}
+
+GPtrArray* le_bon_mot_engine_get_board_state(LeBonMotEngine* self) {
+  g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), NULL);
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  for (guint rowIndex = 0; rowIndex < priv->board->len; rowIndex +=1 ) {
-    GPtrArray *row = g_ptr_array_index(priv->board, rowIndex);
-    for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
-      Letter *letter = g_ptr_array_index(row, columnIndex);
-      GString *label = g_string_new("");
-      g_string_append_c(label, letter->letter);
-      gtk_grid_attach(grid, gtk_label_new(label->str), columnIndex, rowIndex, 1, 1);
-    }
-  }
+  return g_ptr_array_copy(priv->board, le_bon_mot_engine_board_copy_row, NULL);
 }

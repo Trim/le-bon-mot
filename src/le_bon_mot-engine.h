@@ -20,9 +20,25 @@
 
 #include <glib-object.h>
 #include "glib-2.0/glib.h"
-#include "gtk/gtk.h"
 
 G_BEGIN_DECLS
+
+/*
+ * Public structure
+ * */
+
+typedef enum {
+  LE_BON_MOT_LETTER_UNKOWN,
+  LE_BON_MOT_LETTER_NOT_PRESENT,
+  LE_BON_MOT_LETTER_PRESENT,
+  LE_BON_MOT_LETTER_WELL_PLACED,
+} LeBonMotLetterState;
+
+typedef struct {
+  gchar letter;
+  guint found;
+  LeBonMotLetterState state;
+} LeBonMotLetter;
 
 /*
  * Type declaration.
@@ -31,10 +47,12 @@ G_BEGIN_DECLS
 G_DECLARE_FINAL_TYPE(LeBonMotEngine, le_bon_mot_engine, LE_BON_MOT, ENGINE, GObject);
 
 /*
- * Method definitions
+ * Public method definitions.
  * */
 LeBonMotEngine *le_bon_mot_engine_new(void);
-void le_bon_mot_engine_show_board (LeBonMotEngine *self,
-                                   GtkGrid        *grid);
+
+// Return the current game board state inside a matrix of GPtrArray
+// (rows and columns) of LeBonMotLetter
+GPtrArray* le_bon_mot_engine_get_board_state (LeBonMotEngine *self);
 
 G_END_DECLS

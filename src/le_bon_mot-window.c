@@ -82,6 +82,8 @@ le_bon_mot_window_on_key_released (
     le_bon_mot_engine_add_letter(window->engine, keyname);
   } else if (strcmp(keyname, "BackSpace") == 0) {
     le_bon_mot_engine_remove_letter(window->engine);
+  } else if (strcmp(keyname, "Return") == 0) {
+    le_bon_mot_engine_validate(window->engine);
   }
   le_bon_mot_window_display_board(window);
 }

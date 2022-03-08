@@ -135,6 +135,10 @@ void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
 {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
+
+  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS) {
+    return;
+  }
   
   GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
 
@@ -152,6 +156,10 @@ void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
 {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
+
+  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS) {
+    return;
+  }
   
   GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
 
@@ -162,5 +170,46 @@ void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
       letter->state = LE_BON_MOT_LETTER_UNKOWN;
       break;
     }
+  }
+}
+
+void le_bon_mot_engine_validate(LeBonMotEngine *self) {
+  g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
+  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
+  
+  GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
+  
+  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS) {
+    return;
+  }
+
+  // Validate state for each letter on current row
+  for (guint col = 0; col < row->len; col += 1) {
+    LeBonMotLetter *letter = g_ptr_array_index(row, col);
+    GString* needle = g_string_new("");
+    g_string_append_c(needle, letter->letter);
+
+    if (letter->letter == LE_BON_MOT_NULL_LETTER) {
+      if (priv->word->str[col] == letter->letter) {
+        letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
+      } else if(strstr(priv->word->str, needle->str)) {
+        letter->state = LE_BON_MOT_LETTER_PRESENT;
+      } else {
+        letter->state = LE_BON_MOT_LETTER_NOT_PRESENT;
+      }
+      break;
+    }
+
+    g_string_free(needle, TRUE);
+  }
+
+  // Move to next row
+  priv->current_row++;
+
+  if (priv->current_row < LE_BON_MOT_ENGINE_ROWS) {
+    GPtrArray* nextRow = g_ptr_array_index(priv->board, priv->current_row);
+    LeBonMotLetter* firstLetter = g_ptr_array_index(nextRow, 0);
+    firstLetter->letter = priv->word->str[0];
+    firstLetter->state = LE_BON_MOT_LETTER_WELL_PLACED;
   }
 }

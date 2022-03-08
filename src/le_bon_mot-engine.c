@@ -23,9 +23,12 @@ const guint LE_BON_MOT_ENGINE_ROWS = 6;
 static GString *le_bon_mot_engine_word_init();
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
 
+const gchar LE_BON_MOT_NULL_LETTER = '_';
+
 typedef struct {
   GString *word;
   GPtrArray *board;
+  guint current_row;
 } LeBonMotEnginePrivate;
 
 struct _LeBonMotEngine
@@ -71,6 +74,7 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
 
   priv->word = le_bon_mot_engine_word_init();
   priv->board = le_bon_mot_engine_board_init(priv->word); 
+  priv->current_row = 0;
 }
 
 static GString *le_bon_mot_engine_word_init() {
@@ -95,7 +99,7 @@ static GPtrArray *le_bon_mot_engine_board_init(GString *word) {
         letter->letter = word->str[0];
         letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
       } else {
-        letter->letter = '_';
+        letter->letter = LE_BON_MOT_NULL_LETTER;
         letter->state = LE_BON_MOT_LETTER_UNKOWN;
       }
       g_ptr_array_add(row, letter);
@@ -125,4 +129,38 @@ GPtrArray* le_bon_mot_engine_get_board_state(LeBonMotEngine* self) {
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
   return g_ptr_array_copy(priv->board, le_bon_mot_engine_board_copy_row, NULL);
+}
+
+void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
+{
+  g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
+  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
+  
+  GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
+
+  for (guint col = 0; col < row->len; col += 1) {
+    LeBonMotLetter *letter = g_ptr_array_index(row, col);
+    if (letter->letter == LE_BON_MOT_NULL_LETTER) {
+      letter->letter = newLetter[0];
+      letter->state = LE_BON_MOT_LETTER_UNKOWN;
+      break;
+    }
+  }
+}
+
+void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
+{
+  g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
+  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
+  
+  GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
+
+  for (guint col = row->len - 1; col <= row->len; col -= 1) {
+    LeBonMotLetter *letter = g_ptr_array_index(row, col);
+    if (letter->letter != LE_BON_MOT_NULL_LETTER && col != 0) {
+      letter->letter = LE_BON_MOT_NULL_LETTER;
+      letter->state = LE_BON_MOT_LETTER_UNKOWN;
+      break;
+    }
+  }
 }

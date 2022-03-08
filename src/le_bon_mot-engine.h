@@ -55,4 +55,8 @@ LeBonMotEngine *le_bon_mot_engine_new(void);
 // (rows and columns) of LeBonMotLetter
 GPtrArray* le_bon_mot_engine_get_board_state (LeBonMotEngine *self);
 
+void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *letter);
+
+void le_bon_mot_engine_remove_letter (LeBonMotEngine *self);
+
 G_END_DECLS

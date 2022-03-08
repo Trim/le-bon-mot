@@ -58,12 +58,46 @@ le_bon_mot_window_class_init (LeBonMotWindowClass *klass)
 }
 
 static void
+le_bon_mot_window_on_key_released (
+    GtkEventControllerKey *self,
+    guint keyval,
+    guint keycode,
+    GdkModifierType state,
+    gpointer user_data)
+{
+  GtkWidget* widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(self));
+  g_return_if_fail(LE_BON_MOT_IS_WINDOW(widget));
+
+  LeBonMotWindow* window = LE_BON_MOT_WINDOW(widget);
+
+  printf("LeBonMotWindow: key released: val: %d, code: %d, name: %s\n", keyval, keycode, gdk_keyval_name(keyval));
+  fflush(NULL);
+  
+  const char *keyname = gdk_keyval_name(keyval);
+  if (g_regex_match_simple(
+        "^[a-z](acute|diaeresis|grave)?$",
+        keyname,
+        G_REGEX_CASELESS,
+        0)) {
+    le_bon_mot_engine_add_letter(window->engine, keyname);
+  } else if (strcmp(keyname, "BackSpace") == 0) {
+    le_bon_mot_engine_remove_letter(window->engine);
+  }
+  le_bon_mot_window_display_board(window);
+}
+
+static void
 le_bon_mot_window_init (LeBonMotWindow *self)
 {
   gtk_widget_init_template (GTK_WIDGET (self));
 
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
   le_bon_mot_window_display_board(self);
+
+  GtkEventController *controller = gtk_event_controller_key_new();
+  gtk_widget_add_controller(GTK_WIDGET(self), controller);
+  gtk_event_controller_set_propagation_phase(controller, GTK_PHASE_CAPTURE);
+  g_signal_connect(controller, "key-released", G_CALLBACK(le_bon_mot_window_on_key_released), NULL);
 }
 
 static void
@@ -79,6 +113,11 @@ le_bon_mot_window_display_board (LeBonMotWindow *self)
       LeBonMotLetter *letter = g_ptr_array_index(row, columnIndex);
       GString *label = g_string_new("");
       g_string_append_c(label, letter->letter);
+
+      GtkWidget* child = gtk_grid_get_child_at(self->game_grid, columnIndex, rowIndex);
+      if (child) {
+        gtk_grid_remove(self->game_grid, child);
+      }
       gtk_grid_attach(self->game_grid, gtk_label_new(label->str), columnIndex, rowIndex, 1, 1);
     }
   }

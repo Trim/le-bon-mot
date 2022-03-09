@@ -21,6 +21,13 @@
 #include "le_bon_mot-engine.h"
 
 static void le_bon_mot_window_display_board ();
+static void
+le_bon_mot_window_on_key_released (
+    GtkEventControllerKey *self,
+    guint keyval,
+    guint keycode,
+    GdkModifierType state,
+    gpointer user_data);
 
 struct _LeBonMotWindow
 {
@@ -58,37 +65,6 @@ le_bon_mot_window_class_init (LeBonMotWindowClass *klass)
 }
 
 static void
-le_bon_mot_window_on_key_released (
-    GtkEventControllerKey *self,
-    guint keyval,
-    guint keycode,
-    GdkModifierType state,
-    gpointer user_data)
-{
-  GtkWidget* widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(self));
-  g_return_if_fail(LE_BON_MOT_IS_WINDOW(widget));
-
-  LeBonMotWindow* window = LE_BON_MOT_WINDOW(widget);
-
-  printf("LeBonMotWindow: key released: val: %d, code: %d, name: %s\n", keyval, keycode, gdk_keyval_name(keyval));
-  fflush(NULL);
-  
-  const char *keyname = gdk_keyval_name(keyval);
-  if (g_regex_match_simple(
-        "^[a-z](acute|diaeresis|grave)?$",
-        keyname,
-        G_REGEX_CASELESS,
-        0)) {
-    le_bon_mot_engine_add_letter(window->engine, keyname);
-  } else if (strcmp(keyname, "BackSpace") == 0) {
-    le_bon_mot_engine_remove_letter(window->engine);
-  } else if (strcmp(keyname, "Return") == 0) {
-    le_bon_mot_engine_validate(window->engine);
-  }
-  le_bon_mot_window_display_board(window);
-}
-
-static void
 le_bon_mot_window_init (LeBonMotWindow *self)
 {
   gtk_widget_init_template (GTK_WIDGET (self));
@@ -123,4 +99,35 @@ le_bon_mot_window_display_board (LeBonMotWindow *self)
       gtk_grid_attach(self->game_grid, gtk_label_new(label->str), columnIndex, rowIndex, 1, 1);
     }
   }
+}
+
+static void
+le_bon_mot_window_on_key_released (
+    GtkEventControllerKey *self,
+    guint keyval,
+    guint keycode,
+    GdkModifierType state,
+    gpointer user_data)
+{
+  GtkWidget* widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(self));
+  g_return_if_fail(LE_BON_MOT_IS_WINDOW(widget));
+
+  LeBonMotWindow* window = LE_BON_MOT_WINDOW(widget);
+
+  printf("LeBonMotWindow: key released: val: %d, code: %d, name: %s\n", keyval, keycode, gdk_keyval_name(keyval));
+  fflush(NULL);
+  
+  const char *keyname = gdk_keyval_name(keyval);
+  if (g_regex_match_simple(
+        "^[a-z](acute|diaeresis|grave)?$",
+        keyname,
+        G_REGEX_CASELESS,
+        0)) {
+    le_bon_mot_engine_add_letter(window->engine, keyname);
+  } else if (strcmp(keyname, "BackSpace") == 0) {
+    le_bon_mot_engine_remove_letter(window->engine);
+  } else if (strcmp(keyname, "Return") == 0) {
+    le_bon_mot_engine_validate(window->engine);
+  }
+  le_bon_mot_window_display_board(window);
 }

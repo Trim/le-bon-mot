@@ -29,6 +29,7 @@ typedef struct {
   GString *word;
   GPtrArray *board;
   guint current_row;
+  gboolean is_finished;
 } LeBonMotEnginePrivate;
 
 struct _LeBonMotEngine
@@ -75,6 +76,7 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
   priv->word = le_bon_mot_engine_word_init();
   priv->board = le_bon_mot_engine_board_init(priv->word); 
   priv->current_row = 0;
+  priv->is_finished = FALSE;
 }
 
 static GString *le_bon_mot_engine_word_init() {
@@ -136,7 +138,7 @@ void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS) {
+  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS || priv->is_finished) {
     return;
   }
   
@@ -157,7 +159,7 @@ void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS) {
+  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS || priv->is_finished) {
     return;
   }
   
@@ -179,28 +181,42 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self) {
   
   GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
   
-  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS) {
+  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS || priv->is_finished) {
     return;
   }
 
-  // Validate state for each letter on current row
+  // Ensure all letters were given
   for (guint col = 0; col < row->len; col += 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
+
+    if (letter->letter == LE_BON_MOT_NULL_LETTER) {
+      return;
+    }
+  }
+
+  // Validate state for each letter on current row
+  guint well_placed = 0;
+  for (guint col = 0; col < row->len; col += 1) {
+    LeBonMotLetter *letter = g_ptr_array_index(row, col);
+
     GString* needle = g_string_new("");
     g_string_append_c(needle, letter->letter);
 
-    if (letter->letter == LE_BON_MOT_NULL_LETTER) {
-      if (priv->word->str[col] == letter->letter) {
-        letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
-      } else if(strstr(priv->word->str, needle->str)) {
-        letter->state = LE_BON_MOT_LETTER_PRESENT;
-      } else {
-        letter->state = LE_BON_MOT_LETTER_NOT_PRESENT;
-      }
-      break;
+    if (priv->word->str[col] == letter->letter) {
+      letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
+      well_placed++;
+    } else if(strstr(priv->word->str, needle->str)) {
+      letter->state = LE_BON_MOT_LETTER_PRESENT;
+    } else {
+      letter->state = LE_BON_MOT_LETTER_NOT_PRESENT;
     }
 
     g_string_free(needle, TRUE);
+  }
+
+  if (well_placed == row->len) {
+    priv->is_finished = TRUE;
+    return;
   }
 
   // Move to next row

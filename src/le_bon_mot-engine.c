@@ -23,7 +23,7 @@ const guint LE_BON_MOT_ENGINE_ROWS = 6;
 static GString *le_bon_mot_engine_word_init();
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
 
-const gchar LE_BON_MOT_NULL_LETTER = '_';
+const gchar LE_BON_MOT_NULL_LETTER = '.';
 
 typedef struct {
   GString *word;

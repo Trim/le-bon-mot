@@ -16,6 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "gtk/gtkcssprovider.h"
 #include "le_bon_mot-config.h"
 #include "le_bon_mot-window.h"
 #include "le_bon_mot-engine.h"
@@ -37,6 +38,7 @@ struct _LeBonMotWindow
   GtkHeaderBar        *header_bar;
   GtkGrid             *game_grid;
 
+  GtkCssProvider      *css_provider;
   LeBonMotEngine      *engine;
 };
 
@@ -69,6 +71,11 @@ le_bon_mot_window_init (LeBonMotWindow *self)
 {
   gtk_widget_init_template (GTK_WIDGET (self));
 
+  GdkDisplay *display = gtk_widget_get_display(GTK_WIDGET (self));
+  self->css_provider = gtk_css_provider_new();
+  gtk_css_provider_load_from_resource(self->css_provider, "/ch/adorsaz/LeBonMot/le_bon_mot-window.css");  
+  gtk_style_context_add_provider_for_display(display, GTK_STYLE_PROVIDER (self->css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
   le_bon_mot_window_display_board(self);
 
@@ -78,8 +85,29 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   g_signal_connect(controller, "key-released", G_CALLBACK(le_bon_mot_window_on_key_released), NULL);
 }
 
+typedef struct {
+  GtkWidget *child;
+  LeBonMotLetter *letter;
+} SetCssUserData;
+
+static gboolean le_bon_mot_window_set_css (gpointer user_data) {
+  SetCssUserData *css_user_data = user_data;
+  switch (css_user_data->letter->state) {
+    case LE_BON_MOT_LETTER_WELL_PLACED:
+      gtk_widget_add_css_class(css_user_data->child, "well-placed");
+      break;
+    case LE_BON_MOT_LETTER_PRESENT:
+      gtk_widget_add_css_class(css_user_data->child, "present");
+      break;
+    default:
+      break;
+  }
+  g_free(user_data);
+  return G_SOURCE_REMOVE;
+}
+
 static void
-le_bon_mot_window_display_board (LeBonMotWindow *self)
+le_bon_mot_window_display_board (LeBonMotWindow *self, guint delay_on_row)
 {
   g_return_if_fail(LE_BON_MOT_IS_WINDOW(self));
 
@@ -89,14 +117,29 @@ le_bon_mot_window_display_board (LeBonMotWindow *self)
     GPtrArray *row = g_ptr_array_index(board, rowIndex);
     for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
       LeBonMotLetter *letter = g_ptr_array_index(row, columnIndex);
-      GString *label = g_string_new("");
-      g_string_append_c(label, letter->letter);
+
+      GString *labelString = g_string_new("");
+      g_string_append_c(labelString, letter->letter);
 
       GtkWidget* child = gtk_grid_get_child_at(self->game_grid, columnIndex, rowIndex);
-      if (child) {
-        gtk_grid_remove(self->game_grid, child);
+      if (!child) {
+        child = gtk_label_new(labelString->str);
+        gtk_grid_attach(self->game_grid, child, columnIndex, rowIndex, 1, 1);
+      } else {
+        gtk_label_set_text(GTK_LABEL (child), labelString->str);
       }
-      gtk_grid_attach(self->game_grid, gtk_label_new(label->str), columnIndex, rowIndex, 1, 1);
+
+      SetCssUserData *user_data = g_new(SetCssUserData, 1);
+      user_data->child = child;
+      user_data->letter = letter;
+
+      if (delay_on_row >= 0 && rowIndex >= delay_on_row) {
+        guint delay = 200 * columnIndex + 200 * row->len * (rowIndex - delay_on_row);
+        g_timeout_add(delay, le_bon_mot_window_set_css, user_data);
+      } else {
+        le_bon_mot_window_set_css(user_data);
+      }
+
     }
   }
 }
@@ -118,6 +161,7 @@ le_bon_mot_window_on_key_released (
   fflush(NULL);
   
   const char *keyname = gdk_keyval_name(keyval);
+  guint delay_on_row = -1;
   if (g_regex_match_simple(
         "^[a-z](acute|diaeresis|grave)?$",
         keyname,
@@ -127,7 +171,8 @@ le_bon_mot_window_on_key_released (
   } else if (strcmp(keyname, "BackSpace") == 0) {
     le_bon_mot_engine_remove_letter(window->engine);
   } else if (strcmp(keyname, "Return") == 0) {
+    delay_on_row = le_bon_mot_engine_get_current_row(window->engine);
     le_bon_mot_engine_validate(window->engine);
   }
-  le_bon_mot_window_display_board(window);
+  le_bon_mot_window_display_board(window, delay_on_row);
 }

@@ -3,5 +3,6 @@
   <gresource prefix="/ch/adorsaz/LeBonMot">
     <file>le_bon_mot-window.ui</file>
     <file>gtk/help-overlay.ui</file>
+    <file>le_bon_mot-window.css</file>
   </gresource>
 </gresources>

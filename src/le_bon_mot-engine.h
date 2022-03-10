@@ -61,4 +61,6 @@ void le_bon_mot_engine_remove_letter (LeBonMotEngine *self);
 
 void le_bon_mot_engine_validate(LeBonMotEngine *self);
 
+guint le_bon_mot_engine_get_current_row (LeBonMotEngine *self);
+
 G_END_DECLS

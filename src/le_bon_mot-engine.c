@@ -229,3 +229,9 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self) {
     firstLetter->state = LE_BON_MOT_LETTER_WELL_PLACED;
   }
 }
+
+guint le_bon_mot_engine_get_current_row (LeBonMotEngine *self) {
+  g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), -1);
+  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
+  return priv->current_row;
+}

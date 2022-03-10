@@ -1,0 +1,14 @@
+label {
+  margin: 0.3rem;
+  padding: 0.5rem;
+  min-width: 1rem;
+
+  transition-property: background-color;
+  transition-duration: 1s;
+}
+.well-placed {
+ background-color: blue;
+}
+.present {
+  background-color: yellow;
+}

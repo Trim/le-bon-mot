@@ -83,6 +83,8 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   gtk_widget_add_controller(GTK_WIDGET(self), controller);
   gtk_event_controller_set_propagation_phase(controller, GTK_PHASE_CAPTURE);
   g_signal_connect(controller, "key-released", G_CALLBACK(le_bon_mot_window_on_key_released), NULL);
+
+  gtk_widget_grab_focus(GTK_WIDGET (self));
 }
 
 typedef struct {
@@ -162,17 +164,24 @@ le_bon_mot_window_on_key_released (
   
   const char *keyname = gdk_keyval_name(keyval);
   guint delay_on_row = -1;
+  // Window grabs focus on any recognized input to avoid propagate keyboard
+  // event to other widgets (like the main menu button)
   if (g_regex_match_simple(
         "^[a-z](acute|diaeresis|grave)?$",
         keyname,
         G_REGEX_CASELESS,
         0)) {
     le_bon_mot_engine_add_letter(window->engine, keyname);
+    le_bon_mot_window_display_board(window, delay_on_row);
+    gtk_widget_grab_focus(widget);
   } else if (strcmp(keyname, "BackSpace") == 0) {
     le_bon_mot_engine_remove_letter(window->engine);
+    le_bon_mot_window_display_board(window, delay_on_row);
+    gtk_widget_grab_focus(widget);
   } else if (strcmp(keyname, "Return") == 0) {
     delay_on_row = le_bon_mot_engine_get_current_row(window->engine);
     le_bon_mot_engine_validate(window->engine);
+    le_bon_mot_window_display_board(window, delay_on_row);
+    gtk_widget_grab_focus(widget);
   }
-  le_bon_mot_window_display_board(window, delay_on_row);
 }

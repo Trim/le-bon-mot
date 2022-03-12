@@ -169,6 +169,12 @@ le_bon_mot_window_on_key_released (
 
   printf("LeBonMotWindow: key released: val: %d, code: %d, name: %s\n", keyval, keycode, gdk_keyval_name(keyval));
   fflush(NULL);
+
+  // Ignore all key sequence with Control key
+  if (state & GDK_CONTROL_MASK)
+  {
+    return;
+  }
   
   const char *keyname = gdk_keyval_name(keyval);
   guint delay_on_row = -1;

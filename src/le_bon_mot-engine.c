@@ -146,11 +146,10 @@ static GPtrArray *le_bon_mot_engine_board_init(GString *word) {
       LeBonMotLetter *letter = g_new(LeBonMotLetter, 1);
       if (rowIndex == 0 && columnIndex == 0) {
         letter->letter = word->str[0];
-        letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
       } else {
         letter->letter = LE_BON_MOT_NULL_LETTER;
-        letter->state = LE_BON_MOT_LETTER_UNKOWN;
       }
+      letter->state = LE_BON_MOT_LETTER_UNKOWN;
       g_ptr_array_add(row, letter);
     }
     g_ptr_array_add(board, row);
@@ -316,7 +315,6 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self) {
     GPtrArray* nextRow = g_ptr_array_index(priv->board, priv->current_row);
     LeBonMotLetter* firstLetter = g_ptr_array_index(nextRow, 0);
     firstLetter->letter = priv->word->str[0];
-    firstLetter->state = LE_BON_MOT_LETTER_WELL_PLACED;
   }
 }
 

@@ -21,12 +21,21 @@
 const guint LE_BON_MOT_ENGINE_ROWS = 6;
 
 static GString *le_bon_mot_engine_word_init();
+static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word);
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
 
 const gchar LE_BON_MOT_NULL_LETTER = '.';
 
 typedef struct {
+  gchar letter;
+  LeBonMotLetterState state;
+  guint found;
+  GPtrArray *position;
+} LeBonMotLetterPrivate;
+
+typedef struct {
   GString *word;
+  GPtrArray *alphabet;
   GPtrArray *board;
   guint current_row;
   gboolean is_finished;
@@ -43,6 +52,8 @@ static void
 le_bon_mot_engine_dispose (GObject *gobject)
 {
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private (LE_BON_MOT_ENGINE (gobject));
+
+  g_ptr_array_unref(priv->alphabet);
 
   // Board is initialized to cascade unref to rows and free letters
   g_ptr_array_unref(priv->board);
@@ -74,6 +85,7 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
   priv->word = le_bon_mot_engine_word_init();
+  priv->alphabet = le_bon_mot_engine_alphabet_init(priv->word);
   priv->board = le_bon_mot_engine_board_init(priv->word); 
   priv->current_row = 0;
   priv->is_finished = FALSE;
@@ -81,7 +93,42 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
 
 static GString *le_bon_mot_engine_word_init() {
   // TODO use a dictionary and some randomness
-  return g_string_new("animal");
+  return g_string_new(g_utf8_normalize("animal", -1, G_NORMALIZE_ALL));
+}
+
+static void le_bon_mot_engine_letter_private_free(gpointer data) {
+  LeBonMotLetterPrivate* letter = data;
+  g_ptr_array_unref(letter->position);
+  g_free(letter);
+}
+
+static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word)
+{
+  GPtrArray *alphabet = g_ptr_array_new_full(
+      26,
+      le_bon_mot_engine_letter_private_free
+  );
+
+  for (gchar i = 'a'; i <= 'z'; i += 1)
+  {
+    LeBonMotLetterPrivate *letter = g_new(LeBonMotLetterPrivate, 1);
+    letter->letter = i;
+    letter->position = g_ptr_array_new_with_free_func(g_free);
+    letter->found = 0;
+    letter->state = LE_BON_MOT_LETTER_UNKOWN;
+    for (guint j = 0; j < word->len; j += 1)
+    {
+      if (i == word->str[j])
+      {
+        guint *position = g_new(guint, 1);
+        *position = j;
+        g_ptr_array_add(letter->position, position);
+      }
+    }
+    g_ptr_array_add(alphabet, letter);
+  }
+
+  return alphabet;
 }
 
 static void le_bon_mot_engine_board_destroy_row(gpointer data) {
@@ -116,7 +163,6 @@ static gpointer le_bon_mot_engine_board_copy_letter(gconstpointer src, gpointer 
   LeBonMotLetter *copy = g_new(LeBonMotLetter, 1);
   const LeBonMotLetter *letter = src;
   copy->letter = letter->letter;
-  copy->found = letter->found;
   copy->state = letter->state;
   return copy;
 }
@@ -175,6 +221,16 @@ void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
   }
 }
 
+static gboolean
+le_bon_mot_engine_compare_letter_private_with_letter (
+    gconstpointer letter_private,
+    gconstpointer letter
+) {
+  const LeBonMotLetterPrivate *first = letter_private;
+  const LeBonMotLetter *second = letter;
+  return first->letter == second->letter;
+}
+
 void le_bon_mot_engine_validate(LeBonMotEngine *self) {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
@@ -194,29 +250,63 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self) {
     }
   }
 
+  // Reset alphabet found
+  for (guint i = 0; i < priv->alphabet->len; i += 1) {
+    LeBonMotLetterPrivate *alphabet = g_ptr_array_index(priv->alphabet, i);
+    alphabet->found = 0;
+  }
+
   // Validate state for each letter on current row
+  
+  // First pass find all well placed letters
   guint well_placed = 0;
   for (guint col = 0; col < row->len; col += 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
 
-    GString* needle = g_string_new("");
-    g_string_append_c(needle, letter->letter);
+    // Alphabet is used to store found letter count
+    guint* alphabet_index = g_new(guint, 1);
+    LeBonMotLetterPrivate *alphabet = NULL;
+    if (g_ptr_array_find_with_equal_func(priv->alphabet, letter,
+          le_bon_mot_engine_compare_letter_private_with_letter,
+          alphabet_index)) {
+      alphabet = g_ptr_array_index(priv->alphabet, *alphabet_index);
+    }
+    g_return_if_fail(alphabet);
 
     if (priv->word->str[col] == letter->letter) {
       letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
+      alphabet->found++;
       well_placed++;
-    } else if(strstr(priv->word->str, needle->str)) {
-      letter->state = LE_BON_MOT_LETTER_PRESENT;
-    } else {
-      letter->state = LE_BON_MOT_LETTER_NOT_PRESENT;
     }
-
-    g_string_free(needle, TRUE);
   }
 
   if (well_placed == row->len) {
     priv->is_finished = TRUE;
     return;
+  }
+
+  // Second pass find all letters present but not well placed
+  for (guint col = 0; col < row->len; col += 1) {
+    LeBonMotLetter *letter = g_ptr_array_index(row, col);
+
+    // Alphabet is used to store found letter count
+    guint* alphabet_index = g_new(guint, 1);
+    LeBonMotLetterPrivate *alphabet = NULL;
+    if (g_ptr_array_find_with_equal_func(priv->alphabet, letter,
+          le_bon_mot_engine_compare_letter_private_with_letter,
+          alphabet_index)) {
+      alphabet = g_ptr_array_index(priv->alphabet, *alphabet_index);
+    }
+    g_return_if_fail(alphabet);
+
+    if (priv->word->str[col] != letter->letter) {
+      if (alphabet->found < alphabet->position->len) {
+        letter->state = LE_BON_MOT_LETTER_PRESENT;
+        alphabet->found++;
+      } else {
+        letter->state = LE_BON_MOT_LETTER_NOT_PRESENT;
+      }
+    }
   }
 
   // Move to next row

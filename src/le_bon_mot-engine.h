@@ -36,7 +36,6 @@ typedef enum {
 
 typedef struct {
   gchar letter;
-  guint found;
   LeBonMotLetterState state;
 } LeBonMotLetter;
 

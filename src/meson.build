@@ -7,6 +7,7 @@ le_bon_mot_sources = [
 
 le_bon_mot_deps = [
   dependency('gtk4'),
+  dependency('libadwaita-1'),
 ]
 
 gnome = import('gnome')

@@ -24,7 +24,7 @@ struct _LeBonMotApplication
   GtkApplication parent_instance;
 };
 
-G_DEFINE_TYPE (LeBonMotApplication, le_bon_mot_application, GTK_TYPE_APPLICATION)
+G_DEFINE_TYPE (LeBonMotApplication, le_bon_mot_application, ADW_TYPE_APPLICATION)
 
 LeBonMotApplication *
 le_bon_mot_application_new (gchar *application_id,
@@ -60,8 +60,8 @@ le_bon_mot_application_activate (GApplication *app)
   if (window == NULL)
     window = g_object_new (LE_BON_MOT_TYPE_WINDOW,
                            "application", app,
-                           "default-width", 600,
-                           "default-height", 300,
+                           "default-width", 400,
+                           "default-height", 400,
                            NULL);
 
   /* Ask the window manager/compositor to present the window. */

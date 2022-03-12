@@ -32,17 +32,17 @@ le_bon_mot_window_on_key_released (
 
 struct _LeBonMotWindow
 {
-  GtkApplicationWindow  parent_instance;
+  AdwApplicationWindow  parent_instance;
 
   /* Template widgets */
-  GtkHeaderBar        *header_bar;
+  AdwHeaderBar        *header_bar;
   GtkGrid             *game_grid;
 
   GtkCssProvider      *css_provider;
   LeBonMotEngine      *engine;
 };
 
-G_DEFINE_TYPE (LeBonMotWindow, le_bon_mot_window, GTK_TYPE_APPLICATION_WINDOW)
+G_DEFINE_TYPE (LeBonMotWindow, le_bon_mot_window, ADW_TYPE_APPLICATION_WINDOW)
 
 static void
 le_bon_mot_window_dispose (GObject *gobject)
@@ -71,14 +71,18 @@ le_bon_mot_window_init (LeBonMotWindow *self)
 {
   gtk_widget_init_template (GTK_WIDGET (self));
 
+  // CSS style
   GdkDisplay *display = gtk_widget_get_display(GTK_WIDGET (self));
   self->css_provider = gtk_css_provider_new();
   gtk_css_provider_load_from_resource(self->css_provider, "/ch/adorsaz/LeBonMot/le_bon_mot-window.css");  
   gtk_style_context_add_provider_for_display(display, GTK_STYLE_PROVIDER (self->css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
+
+  // Engine
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
   le_bon_mot_window_display_board(self);
 
+  // Event management
   GtkEventController *controller = gtk_event_controller_key_new();
   gtk_widget_add_controller(GTK_WIDGET(self), controller);
   gtk_event_controller_set_propagation_phase(controller, GTK_PHASE_CAPTURE);
@@ -95,8 +99,11 @@ typedef struct {
 static gboolean le_bon_mot_window_set_css (gpointer user_data) {
   SetCssUserData *css_user_data = user_data;
   switch (css_user_data->letter->state) {
+    case LE_BON_MOT_LETTER_NOT_PRESENT:
+      gtk_widget_add_css_class(css_user_data->child, "not_present");
+      break;
     case LE_BON_MOT_LETTER_WELL_PLACED:
-      gtk_widget_add_css_class(css_user_data->child, "well-placed");
+      gtk_widget_add_css_class(css_user_data->child, "well_placed");
       break;
     case LE_BON_MOT_LETTER_PRESENT:
       gtk_widget_add_css_class(css_user_data->child, "present");
@@ -126,6 +133,7 @@ le_bon_mot_window_display_board (LeBonMotWindow *self, guint delay_on_row)
       GtkWidget* child = gtk_grid_get_child_at(self->game_grid, columnIndex, rowIndex);
       if (!child) {
         child = gtk_label_new(labelString->str);
+        gtk_widget_add_css_class(child, "card");
         gtk_grid_attach(self->game_grid, child, columnIndex, rowIndex, 1, 1);
       } else {
         gtk_label_set_text(GTK_LABEL (child), labelString->str);
@@ -136,7 +144,7 @@ le_bon_mot_window_display_board (LeBonMotWindow *self, guint delay_on_row)
       user_data->letter = letter;
 
       if (delay_on_row >= 0 && rowIndex >= delay_on_row) {
-        guint delay = 200 * columnIndex + 200 * row->len * (rowIndex - delay_on_row);
+        guint delay = 500 * columnIndex + 500 * row->len * (rowIndex - delay_on_row);
         g_timeout_add(delay, le_bon_mot_window_set_css, user_data);
       } else {
         le_bon_mot_window_set_css(user_data);

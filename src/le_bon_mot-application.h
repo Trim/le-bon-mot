@@ -19,12 +19,13 @@
 #pragma once
 
 #include <gtk/gtk.h>
+#include <adwaita.h>
 
 G_BEGIN_DECLS
 
 #define LE_BON_MOT_TYPE_APPLICATION (le_bon_mot_application_get_type())
 
-G_DECLARE_FINAL_TYPE (LeBonMotApplication, le_bon_mot_application, LE_BON_MOT, APPLICATION, GtkApplication)
+G_DECLARE_FINAL_TYPE (LeBonMotApplication, le_bon_mot_application, LE_BON_MOT, APPLICATION, AdwApplication)
 
 LeBonMotApplication *le_bon_mot_application_new (gchar *application_id,
                                                  GApplicationFlags  flags);

@@ -1,14 +1,28 @@
-label {
-  margin: 0.3rem;
-  padding: 0.5rem;
-  min-width: 1rem;
+grid.game_grid label
+{
+  margin: 0.5em;
+  padding: 0.5em;
+  min-width: 1.5em;
+  min-height: 1.5em;
 
-  transition-property: background-color;
-  transition-duration: 1s;
+  font-weight: bold;
+  text-transform: uppercase;
+
+  transition-property: color, background-color;
+  transition-duration: 500ms, 1200ms;
 }
-.well-placed {
- background-color: blue;
+
+grid.game_grid label.well_placed
+{
+  background-color: @success_bg_color;
 }
-.present {
-  background-color: yellow;
+
+grid.game_grid label.present
+{
+  background-color: @warning_bg_color;
+}
+
+grid.game_grid label.not_present
+{
+  background-color: alpha(@light_4, 0.5);
 }

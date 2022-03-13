@@ -21,7 +21,15 @@
 #include "le_bon_mot-window.h"
 #include "le_bon_mot-engine.h"
 
-static void le_bon_mot_window_display_board ();
+typedef struct {
+  GtkLabel *label;
+  LeBonMotLetter *letter;
+} labelData;
+
+static void le_bon_mot_window_display_board (
+    LeBonMotWindow* self,
+    guint delay_on_row
+    );
 static void
 le_bon_mot_window_on_key_released (
     GtkEventControllerKey *self,
@@ -40,6 +48,7 @@ struct _LeBonMotWindow
 
   GtkCssProvider      *css_provider;
   LeBonMotEngine      *engine;
+  gboolean            is_validating;
 };
 
 G_DEFINE_TYPE (LeBonMotWindow, le_bon_mot_window, ADW_TYPE_APPLICATION_WINDOW)
@@ -80,7 +89,8 @@ le_bon_mot_window_init (LeBonMotWindow *self)
 
   // Engine
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
-  le_bon_mot_window_display_board(self);
+  self->is_validating = FALSE;
+  le_bon_mot_window_display_board(self, -1);
 
   // Event management
   GtkEventController *controller = gtk_event_controller_key_new();
@@ -91,22 +101,23 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   gtk_widget_grab_focus(GTK_WIDGET (self));
 }
 
-typedef struct {
-  GtkWidget *child;
-  LeBonMotLetter *letter;
-} SetCssUserData;
+static gboolean le_bon_mot_window_set_label_data (gpointer user_data) {
+  labelData *label_data = user_data;
 
-static gboolean le_bon_mot_window_set_css (gpointer user_data) {
-  SetCssUserData *css_user_data = user_data;
-  switch (css_user_data->letter->state) {
+  GString *labelString = g_string_new(NULL);
+  g_string_append_c(labelString, label_data->letter->letter);
+  gtk_label_set_text(GTK_LABEL (label_data->label), labelString->str);
+  g_string_free(labelString, TRUE);
+
+  switch (label_data->letter->state) {
     case LE_BON_MOT_LETTER_NOT_PRESENT:
-      gtk_widget_add_css_class(css_user_data->child, "not_present");
+      gtk_widget_add_css_class(GTK_WIDGET(label_data->label), "not_present");
       break;
     case LE_BON_MOT_LETTER_WELL_PLACED:
-      gtk_widget_add_css_class(css_user_data->child, "well_placed");
+      gtk_widget_add_css_class(GTK_WIDGET(label_data->label), "well_placed");
       break;
     case LE_BON_MOT_LETTER_PRESENT:
-      gtk_widget_add_css_class(css_user_data->child, "present");
+      gtk_widget_add_css_class(GTK_WIDGET(label_data->label), "present");
       break;
     default:
       break;
@@ -115,8 +126,17 @@ static gboolean le_bon_mot_window_set_css (gpointer user_data) {
   return G_SOURCE_REMOVE;
 }
 
+static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
+  g_return_val_if_fail(LE_BON_MOT_IS_WINDOW(user_data), G_SOURCE_REMOVE);
+  LeBonMotWindow *self = user_data;
+  self->is_validating = FALSE;
+  return G_SOURCE_REMOVE;
+}
+
 static void
-le_bon_mot_window_display_board (LeBonMotWindow *self, guint delay_on_row)
+le_bon_mot_window_display_board (
+    LeBonMotWindow *self,
+    guint delay_on_row)
 {
   g_return_if_fail(LE_BON_MOT_IS_WINDOW(self));
 
@@ -127,27 +147,34 @@ le_bon_mot_window_display_board (LeBonMotWindow *self, guint delay_on_row)
     for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
       LeBonMotLetter *letter = g_ptr_array_index(row, columnIndex);
 
-      GString *labelString = g_string_new("");
-      g_string_append_c(labelString, letter->letter);
-
       GtkWidget* child = gtk_grid_get_child_at(self->game_grid, columnIndex, rowIndex);
       if (!child) {
-        child = gtk_label_new(labelString->str);
+        child = gtk_label_new(NULL);
         gtk_widget_add_css_class(child, "card");
         gtk_grid_attach(self->game_grid, child, columnIndex, rowIndex, 1, 1);
-      } else {
-        gtk_label_set_text(GTK_LABEL (child), labelString->str);
       }
 
-      SetCssUserData *user_data = g_new(SetCssUserData, 1);
-      user_data->child = child;
-      user_data->letter = letter;
+      labelData *label_data = g_new(labelData, 1);
+      label_data->label = GTK_LABEL(child);
+      label_data->letter = letter;
 
-      if (delay_on_row >= 0 && rowIndex >= delay_on_row) {
+      if (self->is_validating && delay_on_row >= 0
+          && (rowIndex == delay_on_row || rowIndex == delay_on_row + 1)) {
         guint delay = 500 * columnIndex + 500 * row->len * (rowIndex - delay_on_row);
-        g_timeout_add(delay, le_bon_mot_window_set_css, user_data);
+        // Delay display of all letters on delay row
+        if (rowIndex == delay_on_row) {
+          g_timeout_add(delay, le_bon_mot_window_set_label_data, label_data);
+        } else {
+          // On row just after, only the first letter need to be delayed
+          if (columnIndex == 0) {
+            g_timeout_add(delay, le_bon_mot_window_set_label_data, label_data);
+            g_timeout_add(delay, le_bon_mot_window_terminate_validation, self);
+          } else {
+            le_bon_mot_window_set_label_data(label_data);
+          }
+        }
       } else {
-        le_bon_mot_window_set_css(user_data);
+        le_bon_mot_window_set_label_data(label_data);
       }
 
     }
@@ -175,6 +202,12 @@ le_bon_mot_window_on_key_released (
   {
     return;
   }
+
+  // Ignore all keys while validating
+  if (window->is_validating)
+  {
+    return;
+  }
   
   const char *keyname = gdk_keyval_name(keyval);
   guint delay_on_row = -1;
@@ -194,6 +227,7 @@ le_bon_mot_window_on_key_released (
     gtk_widget_grab_focus(widget);
   } else if (strcmp(keyname, "Return") == 0) {
     delay_on_row = le_bon_mot_engine_get_current_row(window->engine);
+    window->is_validating = TRUE;
     le_bon_mot_engine_validate(window->engine);
     le_bon_mot_window_display_board(window, delay_on_row);
     gtk_widget_grab_focus(widget);

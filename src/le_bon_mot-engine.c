@@ -130,20 +130,34 @@ static GString *le_bon_mot_engine_word_init() {
     return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
   }
 
+  gboolean found_first_new_line = (skip == 0);
   while(TRUE) {
-    read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, G_N_ELEMENTS(buffer) - 1, NULL, &error);
-    if (read > 0) {
-      buffer[read] = '\0';
-      if (g_regex_match_all(word_lookup, buffer, G_REGEX_MATCH_NOTEMPTY, &match)) {
-        g_string_append(word_found, g_match_info_fetch(match, 0)); 
-        g_print("Found: %s\n", word_found->str);
+    // Move the cursor to the begining of a word
+    if (!found_first_new_line) {
+      read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, 1, NULL, &error);
+      if (read > 0) {
+        found_first_new_line = (buffer[0] == '\n');
+      } else if (read < 0) {
+        g_print("Error occured while moving cursor to word start: code: %d, message: %s", error->code, error->message);
+        return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+      } else {
         break;
       }
-    } else if (read < 0) {
-      g_print("Error occured while reading dictionary: code: %d, message: %s", error->code, error->message);
-      return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
     } else {
-      break;
+      read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, G_N_ELEMENTS(buffer) - 1, NULL, &error);
+      if (read > 0) {
+        buffer[read] = '\0';
+        if (g_regex_match_all(word_lookup, buffer, G_REGEX_MATCH_NOTEMPTY, &match)) {
+          g_string_append(word_found, g_match_info_fetch(match, 0)); 
+          g_print("Found: %s (skipped %ld bytes)\n", word_found->str, skip);
+          break;
+        }
+      } else if (read < 0) {
+        g_print("Error occured while reading dictionary: code: %d, message: %s", error->code, error->message);
+        return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+      } else {
+        break;
+      }
     }
   }
 

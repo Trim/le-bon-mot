@@ -17,6 +17,7 @@
  */
 
 #include "le_bon_mot-engine.h"
+#include <gio/gio.h>
 
 const guint LE_BON_MOT_ENGINE_ROWS = 6;
 
@@ -93,7 +94,62 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
 
 static GString *le_bon_mot_engine_word_init() {
   // TODO use a dictionary and some randomness
-  return g_string_new(g_utf8_normalize("animal", -1, G_NORMALIZE_ALL));
+  GString *word_found = g_string_new(NULL);
+  GFile *dictionary = g_file_new_for_uri("file:///usr/share/dict/french");
+  GError *error = NULL;
+
+  // Compile regexp to lookup word
+  GRegex *word_lookup = g_regex_new("^\\w{5,8}$", G_REGEX_MULTILINE, 0, &error);
+  if (!word_lookup) {
+    g_print("Error while compiling regexp: code: %d, message: %s", error->code, error->message);
+    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+  }
+
+  // Get file info to know where to skip
+  GFileInfo* dictionary_info = g_file_query_info(dictionary, G_FILE_ATTRIBUTE_STANDARD_SIZE, G_FILE_QUERY_INFO_NONE, NULL, &error);
+  if (!dictionary_info) {
+    g_print("Error while reading dictionary file info: code: %d, message: %s", error->code, error->message);
+    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+  }
+  goffset offset = g_file_info_get_size(dictionary_info);
+  // Open file for read
+  GFileInputStream *dictionary_stream = g_file_read(dictionary, NULL, &error);
+  if (!dictionary_stream) {
+    g_print("Error occured while opening dictionary: code: %d, message: %s", error->code, error->message);
+    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+  }
+
+  gssize read;
+  gchar buffer[100];
+  GMatchInfo *match;
+
+  gssize skip = g_random_int_range(0, offset - 100);
+  read = g_input_stream_skip(G_INPUT_STREAM(dictionary_stream), skip, NULL, &error);
+  if (read < 0) {
+    g_print("Error occured while reading (skip) dictionary: code: %d, message: %s", error->code, error->message);
+    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+  }
+
+  while(TRUE) {
+    read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, G_N_ELEMENTS(buffer) - 1, NULL, &error);
+    if (read > 0) {
+      buffer[read] = '\0';
+      if (g_regex_match_all(word_lookup, buffer, G_REGEX_MATCH_NOTEMPTY, &match)) {
+        g_string_append(word_found, g_match_info_fetch(match, 0)); 
+        g_print("Found: %s\n", word_found->str);
+        break;
+      }
+    } else if (read < 0) {
+      g_print("Error occured while reading dictionary: code: %d, message: %s", error->code, error->message);
+      return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+    } else {
+      break;
+    }
+  }
+
+  g_input_stream_close(G_INPUT_STREAM(dictionary_stream), NULL, NULL);
+  g_match_info_unref(match);
+  return g_string_new(g_utf8_normalize(word_found->str, word_found->allocated_len, G_NORMALIZE_ALL));
 }
 
 static void le_bon_mot_engine_letter_private_free(gpointer data) {

@@ -60,8 +60,8 @@ le_bon_mot_application_activate (GApplication *app)
   if (window == NULL)
     window = g_object_new (LE_BON_MOT_TYPE_WINDOW,
                            "application", app,
-                           "default-width", 400,
-                           "default-height", 400,
+                           "default-width", 800,
+                           "default-height", 600,
                            NULL);
 
   /* Ask the window manager/compositor to present the window. */

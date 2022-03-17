@@ -20,8 +20,11 @@
 #include <gio/gio.h>
 
 const guint LE_BON_MOT_ENGINE_ROWS = 6;
+const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MIN = 5;
+const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MAX = 8;
 
-static GString *le_bon_mot_engine_word_init();
+static GTree *le_bon_mot_engine_dictionary_init();
+static GString *le_bon_mot_engine_word_init(GTree *dictionary);
 static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word);
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
 
@@ -35,11 +38,17 @@ typedef struct {
 } LeBonMotLetterPrivate;
 
 typedef struct {
+  GString* word;
+  gboolean is_playable;
+} DictionaryWord;
+
+typedef struct {
   GString *word;
   GPtrArray *alphabet;
   GPtrArray *board;
   guint current_row;
   gboolean is_finished;
+  GTree *dictionary;
 } LeBonMotEnginePrivate;
 
 struct _LeBonMotEngine
@@ -55,6 +64,7 @@ le_bon_mot_engine_dispose (GObject *gobject)
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private (LE_BON_MOT_ENGINE (gobject));
 
   g_ptr_array_unref(priv->alphabet);
+  g_tree_unref(priv->dictionary);
 
   // Board is initialized to cascade unref to rows and free letters
   g_ptr_array_unref(priv->board);
@@ -63,21 +73,9 @@ le_bon_mot_engine_dispose (GObject *gobject)
 }
 
 static void
-le_bon_mot_engine_finalize (GObject *gobject)
-{
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private (LE_BON_MOT_ENGINE (gobject));
-
-  // Word
-  g_string_free (priv->word, TRUE);
-
-  G_OBJECT_CLASS (le_bon_mot_engine_parent_class)->finalize (gobject);
-}
-
-static void
 le_bon_mot_engine_class_init(LeBonMotEngineClass *klass) {
   GObjectClass *g_object_class = G_OBJECT_CLASS(klass);
 
-  g_object_class->finalize = le_bon_mot_engine_finalize;
   g_object_class->dispose = le_bon_mot_engine_dispose;
 }
 
@@ -85,85 +83,110 @@ static void
 le_bon_mot_engine_init(LeBonMotEngine *self) {
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  priv->word = le_bon_mot_engine_word_init();
+  priv->dictionary = le_bon_mot_engine_dictionary_init();
+  priv->word = le_bon_mot_engine_word_init(priv->dictionary);
   priv->alphabet = le_bon_mot_engine_alphabet_init(priv->word);
   priv->board = le_bon_mot_engine_board_init(priv->word); 
   priv->current_row = 0;
   priv->is_finished = FALSE;
 }
 
-static GString *le_bon_mot_engine_word_init() {
-  // TODO use a dictionary and some randomness
-  GString *word_found = g_string_new(NULL);
-  GFile *dictionary = g_file_new_for_uri("file:///usr/share/dict/french");
+static void le_bon_mot_engine_dictionary_destroy_value(gpointer data) {
+  DictionaryWord* dword = data;
+  g_string_free(dword->word, TRUE);
+  g_free(dword);
+}
+
+static GTree *le_bon_mot_engine_dictionary_init() {
+  GTree *dictionary = g_tree_new_full(
+      (GCompareDataFunc) g_strcmp0, NULL,
+      g_free, le_bon_mot_engine_dictionary_destroy_value);
+  GFile *dictionary_file = g_file_new_for_uri("file:///usr/share/dict/french");
   GError *error = NULL;
 
-  // Compile regexp to lookup word
-  GRegex *word_lookup = g_regex_new("^\\w{5,8}$", G_REGEX_MULTILINE, 0, &error);
-  if (!word_lookup) {
-    g_print("Error while compiling regexp: code: %d, message: %s", error->code, error->message);
-    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
-  }
-
-  // Get file info to know where to skip
-  GFileInfo* dictionary_info = g_file_query_info(dictionary, G_FILE_ATTRIBUTE_STANDARD_SIZE, G_FILE_QUERY_INFO_NONE, NULL, &error);
-  if (!dictionary_info) {
-    g_print("Error while reading dictionary file info: code: %d, message: %s", error->code, error->message);
-    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
-  }
-  goffset offset = g_file_info_get_size(dictionary_info);
   // Open file for read
-  GFileInputStream *dictionary_stream = g_file_read(dictionary, NULL, &error);
+  GFileInputStream *dictionary_stream = g_file_read(dictionary_file, NULL, &error);
   if (!dictionary_stream) {
-    g_print("Error occured while opening dictionary: code: %d, message: %s", error->code, error->message);
-    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
+    g_error("Error occured while opening dictionary: code: %d, message: %s", error->code, error->message);
+    exit(1);
   }
 
   gssize read;
-  gchar buffer[100];
-  GMatchInfo *match;
+  gchar buffer[1024];
+  GString *word = g_string_new(NULL);
 
-  gssize skip = g_random_int_range(0, offset - 100);
-  read = g_input_stream_skip(G_INPUT_STREAM(dictionary_stream), skip, NULL, &error);
-  if (read < 0) {
-    g_print("Error occured while reading (skip) dictionary: code: %d, message: %s", error->code, error->message);
-    return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
-  }
-
-  gboolean found_first_new_line = (skip == 0);
   while(TRUE) {
-    // Move the cursor to the begining of a word
-    if (!found_first_new_line) {
-      read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, 1, NULL, &error);
-      if (read > 0) {
-        found_first_new_line = (buffer[0] == '\n');
-      } else if (read < 0) {
-        g_print("Error occured while moving cursor to word start: code: %d, message: %s", error->code, error->message);
-        return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
-      } else {
-        break;
-      }
-    } else {
-      read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, G_N_ELEMENTS(buffer) - 1, NULL, &error);
-      if (read > 0) {
-        buffer[read] = '\0';
-        if (g_regex_match_all(word_lookup, buffer, G_REGEX_MATCH_NOTEMPTY, &match)) {
-          g_string_append(word_found, g_match_info_fetch(match, 0)); 
-          g_print("Found: %s (skipped %ld bytes)\n", word_found->str, skip);
-          break;
+    read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, G_N_ELEMENTS(buffer), NULL, &error);
+    if (read > 0) {
+      for (guint i = 0; i < read; i += 1)
+      {
+        if (buffer[i] == '\n') {
+          if (word->len >= 5 && word->len <= 8) {
+            DictionaryWord *dword = g_new(DictionaryWord, 1);
+            dword->is_playable = (word->len >= LE_BON_MOT_ENGINE_WORD_LENGTH_MIN && word->len <= LE_BON_MOT_ENGINE_WORD_LENGTH_MAX);
+            dword->word = word;
+            g_tree_insert(dictionary, g_utf8_collate_key(g_utf8_casefold(dword->word->str, -1), -1), dword);
+            word = g_string_new(NULL);
+          } else {
+            g_string_erase(word, 0, -1);
+          }
+        } else {
+          word = g_string_append_c(word, buffer[i]);
         }
-      } else if (read < 0) {
-        g_print("Error occured while reading dictionary: code: %d, message: %s", error->code, error->message);
-        return g_string_new(g_utf8_normalize("erreur", -1, G_NORMALIZE_ALL));
-      } else {
-        break;
       }
+    } else if (read < 0) {
+      g_error("Error occured while reading dictionary: code: %d, message: %s", error->code, error->message);
+      exit(1);
+    } else {
+      break;
     }
   }
 
   g_input_stream_close(G_INPUT_STREAM(dictionary_stream), NULL, NULL);
-  g_match_info_unref(match);
-  return g_string_new(g_utf8_normalize(word_found->str, word_found->allocated_len, G_NORMALIZE_ALL));
+  return dictionary;
+}
+
+static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
+  guint offset = g_random_int_range(0, g_tree_nnodes(dictionary));
+  guint word_length = g_random_int_range(LE_BON_MOT_ENGINE_WORD_LENGTH_MIN, LE_BON_MOT_ENGINE_WORD_LENGTH_MAX);
+  GTreeNode *node = g_tree_node_first(dictionary);
+  GString *word = NULL;
+  // First lookup for word from random range
+  guint i = 0;
+  while (node)
+  {
+    DictionaryWord *dword = g_tree_node_value(node);
+    // Lookup first playable value from the random offset
+    if (i >= offset && dword->is_playable && dword->word->len == word_length) {
+      word = dword->word;
+      break;
+    }
+    i++;
+    node = g_tree_node_next(node);
+  }
+
+  // Second lookup from start (if random has given last value and its not playable)
+  if (!word) {
+    node = g_tree_node_first(dictionary);
+    while (node)
+    {
+      DictionaryWord *dword = g_tree_node_value(node);
+      // Lookup first playable value from the random offset
+      if (dword->is_playable && dword->word->len == word_length) {
+        word = dword->word;
+        break;
+      }
+      node = g_tree_node_next(node);
+    }
+  }
+
+  // Finally if word is still unknown give up
+  if (!word) {
+    g_error("Unable to find a word");
+    exit(2);
+  }
+
+  return word;
 }
 
 static void le_bon_mot_engine_letter_private_free(gpointer data) {
@@ -304,7 +327,8 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self) {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
   
-  GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
+  GPtrArray *row = g_ptr_array_index(priv->board, priv->current_row);
+  GString *word = g_string_new(NULL);
   
   if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS || priv->is_finished) {
     return;
@@ -313,11 +337,24 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self) {
   // Ensure all letters were given
   for (guint col = 0; col < row->len; col += 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
+    g_string_append_c(word, letter->letter);
 
     if (letter->letter == LE_BON_MOT_NULL_LETTER) {
+      g_string_free(word, TRUE);
       return;
     }
   }
+
+  // Check if the given word exists in dictionary
+  gchar *folded_word = g_utf8_casefold(word->str, -1);
+  gchar *key_word = g_utf8_collate_key(folded_word, -1);
+  g_free(folded_word);
+  if (!g_tree_lookup(priv->dictionary, key_word)) {
+    g_free(key_word);
+    return;
+  }
+  g_free(key_word);
+  g_string_free(word, TRUE);
 
   // Reset alphabet found
   for (guint i = 0; i < priv->alphabet->len; i += 1) {

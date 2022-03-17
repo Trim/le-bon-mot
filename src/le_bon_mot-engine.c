@@ -20,6 +20,7 @@
 #include <gio/gio.h>
 
 const guint LE_BON_MOT_ENGINE_ROWS = 6;
+const gchar LE_BON_MOT_ENGINE_NULL_LETTER = '.';
 const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MIN = 5;
 const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MAX = 8;
 
@@ -27,8 +28,6 @@ static GTree *le_bon_mot_engine_dictionary_init();
 static GString *le_bon_mot_engine_word_init(GTree *dictionary);
 static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word);
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
-
-const gchar LE_BON_MOT_NULL_LETTER = '.';
 
 typedef struct {
   gchar letter;
@@ -240,7 +239,7 @@ static GPtrArray *le_bon_mot_engine_board_init(GString *word) {
       if (rowIndex == 0 && columnIndex == 0) {
         letter->letter = word->str[0];
       } else {
-        letter->letter = LE_BON_MOT_NULL_LETTER;
+        letter->letter = LE_BON_MOT_ENGINE_NULL_LETTER;
       }
       letter->state = LE_BON_MOT_LETTER_UNKOWN;
       g_ptr_array_add(row, letter);
@@ -284,7 +283,7 @@ void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
 
   for (guint col = 0; col < row->len; col += 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
-    if (letter->letter == LE_BON_MOT_NULL_LETTER) {
+    if (letter->letter == LE_BON_MOT_ENGINE_NULL_LETTER) {
       letter->letter = newLetter[0];
       letter->state = LE_BON_MOT_LETTER_UNKOWN;
       break;
@@ -305,8 +304,8 @@ void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
 
   for (guint col = row->len - 1; col <= row->len; col -= 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
-    if (letter->letter != LE_BON_MOT_NULL_LETTER && col != 0) {
-      letter->letter = LE_BON_MOT_NULL_LETTER;
+    if (letter->letter != LE_BON_MOT_ENGINE_NULL_LETTER && col != 0) {
+      letter->letter = LE_BON_MOT_ENGINE_NULL_LETTER;
       letter->state = LE_BON_MOT_LETTER_UNKOWN;
       break;
     }
@@ -339,7 +338,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
     g_string_append_c(word, letter->letter);
 
-    if (letter->letter == LE_BON_MOT_NULL_LETTER) {
+    if (letter->letter == LE_BON_MOT_ENGINE_NULL_LETTER) {
       g_string_free(word, TRUE);
       return;
     }

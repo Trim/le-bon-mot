@@ -194,7 +194,7 @@ le_bon_mot_window_on_key_released (
 
   LeBonMotWindow* window = LE_BON_MOT_WINDOW(widget);
 
-  printf("LeBonMotWindow: key released: val: %d, code: %d, name: %s\n", keyval, keycode, gdk_keyval_name(keyval));
+  g_debug("LeBonMotWindow: key released: val: %d, code: %d, name: %s\n", keyval, keycode, gdk_keyval_name(keyval));
   fflush(NULL);
 
   // Ignore all key sequence with Control key

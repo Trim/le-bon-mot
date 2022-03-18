@@ -286,6 +286,10 @@ void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
   for (guint col = 0; col < row->len; col += 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
     if (letter->letter == LE_BON_MOT_ENGINE_NULL_LETTER) {
+      // Ignore input if user write the first letter on second position
+      if (col == 1 && newLetter[0] == priv->word->str[0]) {
+        break;
+      }
       letter->letter = newLetter[0];
       letter->state = LE_BON_MOT_LETTER_UNKOWN;
       break;

@@ -25,15 +25,19 @@
           </object>
         </child>
         <child>
-          <object class="GtkGrid" id="game_grid">
-            <property name="vexpand">TRUE</property>
-            <property name="hexpand">TRUE</property>
-            <property name="halign">GTK_ALIGN_CENTER</property>
-            <property name="valign">GTK_ALIGN_CENTER</property>
-            <style>
-              <class name="game_grid" />
-              <class name="card" />
-            </style>
+          <object class="AdwToastOverlay" id="toast_overlay">
+            <child>
+              <object class="GtkGrid" id="game_grid">
+                <property name="vexpand">TRUE</property>
+                <property name="hexpand">TRUE</property>
+                <property name="halign">GTK_ALIGN_CENTER</property>
+                <property name="valign">GTK_ALIGN_CENTER</property>
+                <style>
+                  <class name="game_grid" />
+                  <class name="card" />
+                </style>
+              </object>
+            </child>
           </object>
         </child>
       </object>

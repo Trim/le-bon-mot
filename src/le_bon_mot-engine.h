@@ -34,10 +34,27 @@ typedef enum {
   LE_BON_MOT_LETTER_WELL_PLACED,
 } LeBonMotLetterState;
 
+typedef enum {
+  LE_BON_MOT_ENGINE_STATE_CONTINUE,
+  LE_BON_MOT_ENGINE_STATE_LOST,
+  LE_BON_MOT_ENGINE_STATE_WON,
+} LeBonMotEngineState;
+
 typedef struct {
   gchar letter;
   LeBonMotLetterState state;
 } LeBonMotLetter;
+
+/*
+ * Errors
+ * */
+
+typedef enum {
+  LE_BON_MOT_ENGINE_ERROR_LINE_INCOMPLETE,
+  LE_BON_MOT_ENGINE_ERROR_WORD_UNKOWN,
+} LeBonMotEngineError;
+
+#define LE_BON_MOT_ENGINE_ERROR le_bon_mot_engine_error_quark()
 
 /*
  * Type declaration.
@@ -58,7 +75,8 @@ void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *letter);
 
 void le_bon_mot_engine_remove_letter (LeBonMotEngine *self);
 
-void le_bon_mot_engine_validate(LeBonMotEngine *self);
+LeBonMotEngineState le_bon_mot_engine_get_game_state (LeBonMotEngine *self);
+void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error);
 
 guint le_bon_mot_engine_get_current_row (LeBonMotEngine *self);
 

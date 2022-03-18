@@ -28,7 +28,7 @@ typedef struct {
 
 static void le_bon_mot_window_display_board (
     LeBonMotWindow* self,
-    guint delay_on_row
+    gint delay_on_row
     );
 static void
 le_bon_mot_window_on_key_released (
@@ -44,6 +44,7 @@ struct _LeBonMotWindow
 
   /* Template widgets */
   AdwHeaderBar        *header_bar;
+  AdwToastOverlay     *toast_overlay;
   GtkGrid             *game_grid;
 
   GtkCssProvider      *css_provider;
@@ -73,6 +74,7 @@ le_bon_mot_window_class_init (LeBonMotWindowClass *klass)
   gtk_widget_class_set_template_from_resource (widget_class, "/ch/adorsaz/LeBonMot/le_bon_mot-window.ui");
   gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, header_bar);
   gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, game_grid);
+  gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, toast_overlay);
 }
 
 static void
@@ -129,6 +131,16 @@ static gboolean le_bon_mot_window_set_label_data (gpointer user_data) {
 static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
   g_return_val_if_fail(LE_BON_MOT_IS_WINDOW(user_data), G_SOURCE_REMOVE);
   LeBonMotWindow *self = user_data;
+  LeBonMotEngineState state = le_bon_mot_engine_get_game_state(self->engine);
+  if (state != LE_BON_MOT_ENGINE_STATE_CONTINUE) { 
+      AdwToast *toast = adw_toast_new("Game Over");
+      if (state == LE_BON_MOT_ENGINE_STATE_WON) {
+        adw_toast_set_title(toast, "Congratulation you won !");
+      }
+      adw_toast_set_timeout(toast, 0);
+      adw_toast_set_priority(toast, ADW_TOAST_PRIORITY_NORMAL);
+      adw_toast_overlay_add_toast(self->toast_overlay, toast);
+  }
   self->is_validating = FALSE;
   return G_SOURCE_REMOVE;
 }
@@ -136,13 +148,14 @@ static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
 static void
 le_bon_mot_window_display_board (
     LeBonMotWindow *self,
-    guint delay_on_row)
+    gint delay_on_row)
 {
   g_return_if_fail(LE_BON_MOT_IS_WINDOW(self));
 
   GPtrArray* board = le_bon_mot_engine_get_board_state(self->engine);
 
-  for (guint rowIndex = 0; rowIndex < board->len; rowIndex +=1 ) {
+  guint longest_delay = 0;
+  for (gint rowIndex = 0; rowIndex < board->len; rowIndex +=1 ) {
     GPtrArray *row = g_ptr_array_index(board, rowIndex);
     for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
       LeBonMotLetter *letter = g_ptr_array_index(row, columnIndex);
@@ -160,7 +173,7 @@ le_bon_mot_window_display_board (
 
       if (self->is_validating && delay_on_row >= 0
           && (rowIndex == delay_on_row || rowIndex == delay_on_row + 1)) {
-        guint delay = 500 * columnIndex + 500 * row->len * (rowIndex - delay_on_row);
+        guint delay = 200 * columnIndex + 200 * row->len * (rowIndex - delay_on_row);
         // Delay display of all letters on delay row
         if (rowIndex == delay_on_row) {
           g_timeout_add(delay, le_bon_mot_window_set_label_data, label_data);
@@ -168,7 +181,7 @@ le_bon_mot_window_display_board (
           // On row just after, only the first letter need to be delayed
           if (columnIndex == 0) {
             g_timeout_add(delay, le_bon_mot_window_set_label_data, label_data);
-            g_timeout_add(delay, le_bon_mot_window_terminate_validation, self);
+            longest_delay = delay + 200;
           } else {
             le_bon_mot_window_set_label_data(label_data);
           }
@@ -179,6 +192,9 @@ le_bon_mot_window_display_board (
 
     }
   }
+
+  // Terminate validation with the current longest delay
+  g_timeout_add(longest_delay, le_bon_mot_window_terminate_validation, self);
 }
 
 static void
@@ -210,7 +226,7 @@ le_bon_mot_window_on_key_released (
   }
   
   const char *keyname = gdk_keyval_name(keyval);
-  guint delay_on_row = -1;
+  gint delay_on_row = -1;
   // Window grabs focus on any recognized input to avoid propagate keyboard
   // event to other widgets (like the main menu button)
   if (g_regex_match_simple(
@@ -228,8 +244,17 @@ le_bon_mot_window_on_key_released (
   } else if (strcmp(keyname, "Return") == 0) {
     delay_on_row = le_bon_mot_engine_get_current_row(window->engine);
     window->is_validating = TRUE;
-    le_bon_mot_engine_validate(window->engine);
-    le_bon_mot_window_display_board(window, delay_on_row);
+    GError *error = NULL;
+    le_bon_mot_engine_validate(window->engine, &error);
+    if (error) {
+      AdwToast *toast = adw_toast_new(error->message);
+      adw_toast_set_timeout(toast, 5);
+      adw_toast_set_priority(toast, ADW_TOAST_PRIORITY_NORMAL);
+      adw_toast_overlay_add_toast(window->toast_overlay, toast);
+      window->is_validating = FALSE;
+    } else {
+      le_bon_mot_window_display_board(window, delay_on_row);
+    }
     gtk_widget_grab_focus(widget);
   }
 }

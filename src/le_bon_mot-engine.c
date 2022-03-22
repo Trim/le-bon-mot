@@ -122,11 +122,17 @@ static GTree *le_bon_mot_engine_dictionary_init() {
       for (guint i = 0; i < read; i += 1)
       {
         if (buffer[i] == '\n') {
-          if (word->len >= 5 && word->len <= 8) {
+          glong word_length = g_utf8_strlen(word->str, -1);
+          if (word_length >= LE_BON_MOT_ENGINE_WORD_LENGTH_MIN
+              && word_length <= LE_BON_MOT_ENGINE_WORD_LENGTH_MAX) {
             DictionaryWord *dword = g_new(DictionaryWord, 1);
-            dword->is_playable = (word->len >= LE_BON_MOT_ENGINE_WORD_LENGTH_MIN && word->len <= LE_BON_MOT_ENGINE_WORD_LENGTH_MAX);
+            dword->is_playable = TRUE;
             dword->word = word;
-            g_tree_insert(dictionary, g_utf8_collate_key(g_utf8_casefold(dword->word->str, -1), -1), dword);
+            gchar * normalized_word = g_utf8_normalize(dword->word->str, -1, G_NORMALIZE_ALL);
+            gchar * folded_word = g_utf8_casefold(normalized_word, -1);
+            g_tree_insert(dictionary, g_utf8_collate_key(folded_word, -1), dword);
+            g_free(folded_word);
+            g_free(normalized_word);
             word = g_string_new(NULL);
           } else {
             g_string_erase(word, 0, -1);
@@ -158,7 +164,7 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
   {
     DictionaryWord *dword = g_tree_node_value(node);
     // Lookup first playable value from the random offset
-    if (i >= offset && dword->is_playable && dword->word->len == word_length) {
+    if (i >= offset && dword->is_playable && g_utf8_strlen(dword->word->str, -1) == word_length) {
       word = dword->word;
       break;
     }
@@ -173,7 +179,7 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
     {
       DictionaryWord *dword = g_tree_node_value(node);
       // Lookup first playable value from the random offset
-      if (dword->is_playable && dword->word->len == word_length) {
+      if (dword->is_playable && g_utf8_strlen(dword->word->str, -1) == word_length) {
         word = dword->word;
         break;
       }
@@ -203,6 +209,8 @@ static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word)
       le_bon_mot_engine_letter_private_free
   );
 
+  glong word_length = g_utf8_strlen(word->str, -1);
+
   for (gchar i = 'a'; i <= 'z'; i += 1)
   {
     LeBonMotLetterPrivate *letter = g_new(LeBonMotLetterPrivate, 1);
@@ -210,7 +218,7 @@ static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word)
     letter->position = g_ptr_array_new_with_free_func(g_free);
     letter->found = 0;
     letter->state = LE_BON_MOT_LETTER_UNKOWN;
-    for (guint j = 0; j < word->len; j += 1)
+    for (glong j = 0; j < word_length; j += 1)
     {
       if (i == word->str[j])
       {
@@ -234,9 +242,10 @@ static GPtrArray *le_bon_mot_engine_board_init(GString *word) {
       LE_BON_MOT_ENGINE_ROWS,
       le_bon_mot_engine_board_destroy_row
   );
+  glong word_length = g_utf8_strlen(word->str, -1);
   for (guint rowIndex = 0; rowIndex < LE_BON_MOT_ENGINE_ROWS; rowIndex += 1) {
     GPtrArray *row = g_ptr_array_new_full(word->len, g_free);
-    for (guint columnIndex = 0; columnIndex < word->len; columnIndex += 1) {
+    for (glong columnIndex = 0; columnIndex < word_length; columnIndex += 1) {
       LeBonMotLetter *letter = g_new(LeBonMotLetter, 1);
       if (rowIndex == 0 && columnIndex == 0) {
         letter->letter = word->str[0];
@@ -357,9 +366,11 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 
   // Check if the given word exists in dictionary
-  gchar *folded_word = g_utf8_casefold(word->str, -1);
+  gchar * normalized_word = g_utf8_normalize(word->str, -1, G_NORMALIZE_ALL);
+  gchar * folded_word = g_utf8_casefold(normalized_word, -1);
   gchar *key_word = g_utf8_collate_key(folded_word, -1);
   g_free(folded_word);
+  g_free(normalized_word);
   if (!g_tree_lookup(priv->dictionary, key_word)) {
     g_free(key_word);
     g_string_free(word, TRUE);

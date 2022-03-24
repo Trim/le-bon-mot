@@ -16,15 +16,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "le_bon_mot-engine.h"
 #include <gio/gio.h>
+#include <unicode/ucol.h>
+#include <unicode/ustring.h>
+#include <unicode/utypes.h>
+
+#include "le_bon_mot-engine.h"
 
 const guint LE_BON_MOT_ENGINE_ROWS = 6;
 const gchar LE_BON_MOT_ENGINE_NULL_LETTER = '.';
 const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MIN = 5;
 const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MAX = 8;
 
-static GTree *le_bon_mot_engine_dictionary_init();
+// Le Bon Mot is currently only developped for French users
+const gchar *LE_BON_MOT_ENGINE_COLLATION = "fr_FR";
+const gchar *LE_BON_MOT_ENGINE_DICTIONARY_FILE_URI = "file:///usr/share/dict/french";
+
+static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator);
 static GString *le_bon_mot_engine_word_init(GTree *dictionary);
 static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word);
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
@@ -49,7 +57,9 @@ typedef struct {
   GPtrArray *board;
   guint current_row;
   LeBonMotEngineState state;
+  // TODO collator and dictionary should be moved to class properties
   GTree *dictionary;
+  UCollator *collator;
 } LeBonMotEnginePrivate;
 
 struct _LeBonMotEngine
@@ -70,6 +80,8 @@ le_bon_mot_engine_dispose (GObject *gobject)
   // Board is initialized to cascade unref to rows and free letters
   g_ptr_array_unref(priv->board);
 
+  ucol_close(priv->collator);
+
   G_OBJECT_CLASS (le_bon_mot_engine_parent_class)->dispose (gobject);
 }
 
@@ -84,7 +96,20 @@ static void
 le_bon_mot_engine_init(LeBonMotEngine *self) {
   LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  priv->dictionary = le_bon_mot_engine_dictionary_init();
+  
+  // Unicode collator give more tools to create dictionary
+  UErrorCode status = U_ZERO_ERROR;
+  priv->collator = ucol_open(LE_BON_MOT_ENGINE_COLLATION, &status);
+
+  if (U_FAILURE(status)) {
+    g_error("Unable to open unicode collator");
+  }
+
+  // Primary strength allow to work with only base characters
+  // (neither case sensitive, nor accent sensitive)
+  ucol_setStrength(priv->collator, UCOL_PRIMARY);
+
+  priv->dictionary = le_bon_mot_engine_dictionary_init(priv->collator);
   priv->word = le_bon_mot_engine_word_init(priv->dictionary);
   priv->alphabet = le_bon_mot_engine_alphabet_init(priv->word);
   priv->board = le_bon_mot_engine_board_init(priv->word); 
@@ -98,11 +123,11 @@ static void le_bon_mot_engine_dictionary_destroy_value(gpointer data) {
   g_free(dword);
 }
 
-static GTree *le_bon_mot_engine_dictionary_init() {
+static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
   GTree *dictionary = g_tree_new_full(
       (GCompareDataFunc) g_strcmp0, NULL,
       g_free, le_bon_mot_engine_dictionary_destroy_value);
-  GFile *dictionary_file = g_file_new_for_uri("file:///usr/share/dict/french");
+  GFile *dictionary_file = g_file_new_for_uri(LE_BON_MOT_ENGINE_DICTIONARY_FILE_URI);
   GError *error = NULL;
 
   // Open file for read
@@ -116,6 +141,12 @@ static GTree *le_bon_mot_engine_dictionary_init() {
   gchar buffer[1024];
   GString *word = g_string_new(NULL);
 
+  UChar u_word_buffer[100];
+  unsigned char key_buffer[100];
+  unsigned char* current_key_buffer = key_buffer;
+  uint32_t key_buffer_size = sizeof(key_buffer);
+  uint32_t key_buffer_expected_size = 0;
+
   while(TRUE) {
     read = g_input_stream_read(G_INPUT_STREAM(dictionary_stream), buffer, G_N_ELEMENTS(buffer), NULL, &error);
     if (read > 0) {
@@ -125,14 +156,32 @@ static GTree *le_bon_mot_engine_dictionary_init() {
           glong word_length = g_utf8_strlen(word->str, -1);
           if (word_length >= LE_BON_MOT_ENGINE_WORD_LENGTH_MIN
               && word_length <= LE_BON_MOT_ENGINE_WORD_LENGTH_MAX) {
+            // Prepare value to store
             DictionaryWord *dword = g_new(DictionaryWord, 1);
             dword->is_playable = TRUE;
             dword->word = word;
-            gchar * normalized_word = g_utf8_normalize(dword->word->str, -1, G_NORMALIZE_ALL);
-            gchar * folded_word = g_utf8_casefold(normalized_word, -1);
-            g_tree_insert(dictionary, g_utf8_collate_key(folded_word, -1), dword);
-            g_free(folded_word);
-            g_free(normalized_word);
+
+            // Prepare key
+            u_uastrcpy(u_word_buffer, word->str);
+            key_buffer_expected_size = ucol_getSortKey(collator, u_word_buffer, -1, key_buffer, key_buffer_size);
+
+            if (key_buffer_expected_size > key_buffer_size) {
+              if (current_key_buffer == key_buffer) {
+                current_key_buffer = (unsigned char *) malloc(key_buffer_expected_size);
+              } else {
+                current_key_buffer = (unsigned char *) realloc(current_key_buffer, key_buffer_expected_size);
+              }
+
+              key_buffer_size = ucol_getSortKey(collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
+            }
+
+            unsigned char* key = malloc(key_buffer_size);
+            memcpy(key, key_buffer, key_buffer_size);
+
+            // Store key - value
+            g_tree_insert(dictionary, key, dword);
+
+            // Prepare word variable for next value
             word = g_string_new(NULL);
           } else {
             g_string_erase(word, 0, -1);
@@ -149,7 +198,12 @@ static GTree *le_bon_mot_engine_dictionary_init() {
     }
   }
 
+  if (current_key_buffer != key_buffer) {
+    g_free(current_key_buffer);
+  }
+
   g_input_stream_close(G_INPUT_STREAM(dictionary_stream), NULL, NULL);
+
   return dictionary;
 }
 
@@ -366,23 +420,36 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 
   // Check if the given word exists in dictionary
-  gchar * normalized_word = g_utf8_normalize(word->str, -1, G_NORMALIZE_ALL);
-  gchar * folded_word = g_utf8_casefold(normalized_word, -1);
-  gchar *key_word = g_utf8_collate_key(folded_word, -1);
-  g_free(folded_word);
-  g_free(normalized_word);
-  if (!g_tree_lookup(priv->dictionary, key_word)) {
-    g_free(key_word);
-    g_string_free(word, TRUE);
+ 
+  // Compute u_word collapse key
+  UChar u_word_buffer[100];
+  unsigned char key_buffer[100];
+  unsigned char* current_key_buffer = key_buffer;
+  uint32_t key_buffer_size = sizeof(key_buffer);
+  uint32_t key_buffer_expected_size = 0;
 
+  u_uastrcpy(u_word_buffer, word->str);
+  key_buffer_expected_size = ucol_getSortKey(priv->collator, u_word_buffer, -1, key_buffer, key_buffer_size);
+
+  if (key_buffer_expected_size > key_buffer_size) {
+    current_key_buffer = (unsigned char *) malloc(key_buffer_expected_size);
+    key_buffer_size = ucol_getSortKey(priv->collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
+  }
+
+  gboolean word_exists = g_tree_lookup(priv->dictionary, current_key_buffer) != NULL;
+
+  if (current_key_buffer != key_buffer) {
+    g_free(current_key_buffer);
+  }
+  g_string_free(word, TRUE);
+
+  if(!word_exists) {
     g_set_error_literal(
         error, LE_BON_MOT_ENGINE_ERROR,
         LE_BON_MOT_ENGINE_ERROR_WORD_UNKOWN,
         "This word doesn't exist in our dictionary.");
     return;
   }
-  g_free(key_word);
-  g_string_free(word, TRUE);
 
   // Reset alphabet found
   for (guint i = 0; i < priv->alphabet->len; i += 1) {

@@ -1,12 +1,14 @@
 le_bon_mot_sources = [
   'main.c',
   'le_bon_mot-engine.c',
-  'le_bon_mot-window.c',
   'le_bon_mot-application.c',
+  'le_bon_mot-window.c',
   ]
 
 le_bon_mot_deps = [
   dependency('gtk4'),
+  dependency('icu-uc'),
+  dependency('icu-i18n'),
   dependency('libadwaita-1'),
 ]
 

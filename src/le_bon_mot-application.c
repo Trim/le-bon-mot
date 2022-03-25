@@ -39,7 +39,7 @@ le_bon_mot_application_new (gchar *application_id,
 static void
 le_bon_mot_application_finalize (GObject *object)
 {
-  LeBonMotApplication *self = (LeBonMotApplication *)object;
+  LE_BON_MOT_IS_APPLICATION (object);
 
   G_OBJECT_CLASS (le_bon_mot_application_parent_class)->finalize (object);
 }
@@ -87,8 +87,8 @@ le_bon_mot_application_class_init (LeBonMotApplicationClass *klass)
 }
 
 static void
-le_bon_mot_application_show_about (GSimpleAction *action,
-                                   GVariant      *parameter,
+le_bon_mot_application_show_about (G_GNUC_UNUSED GSimpleAction *action,
+                                   G_GNUC_UNUSED GVariant      *parameter,
                                    gpointer       user_data)
 {
   LeBonMotApplication *self = LE_BON_MOT_APPLICATION (user_data);

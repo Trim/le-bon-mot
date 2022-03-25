@@ -203,7 +203,7 @@ le_bon_mot_window_on_key_released (
     guint keyval,
     guint keycode,
     GdkModifierType state,
-    gpointer user_data)
+    G_GNUC_UNUSED gpointer user_data)
 {
   GtkWidget* widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(self));
   g_return_if_fail(LE_BON_MOT_IS_WINDOW(widget));

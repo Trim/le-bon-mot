@@ -347,7 +347,7 @@ static GPtrArray *le_bon_mot_engine_board_init(GString *word) {
   return board;
 }
 
-static gpointer le_bon_mot_engine_board_copy_letter(gconstpointer src, gpointer data)
+static gpointer le_bon_mot_engine_board_copy_letter(gconstpointer src, G_GNUC_UNUSED gpointer data)
 {
   LeBonMotLetter *copy = g_new(LeBonMotLetter, 1);
   const LeBonMotLetter *letter = src;
@@ -356,7 +356,7 @@ static gpointer le_bon_mot_engine_board_copy_letter(gconstpointer src, gpointer 
   return copy;
 }
 
-static gpointer le_bon_mot_engine_board_copy_row (gconstpointer src, gpointer data)
+static gpointer le_bon_mot_engine_board_copy_row (gconstpointer src, G_GNUC_UNUSED gpointer data)
 {
   return g_ptr_array_copy((GPtrArray *) src, le_bon_mot_engine_board_copy_letter, NULL);
 }

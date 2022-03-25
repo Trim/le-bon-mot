@@ -125,9 +125,20 @@ static void le_bon_mot_engine_dictionary_destroy_value(gpointer data) {
   g_free(dword);
 }
 
+static gint
+le_bon_mot_engine_dictionary_compare_word (
+    gconstpointer string1,
+    gconstpointer string2,
+    G_GNUC_UNUSED gpointer user_data
+) {
+  const char *first = string1;
+  const char *second = string2;
+  return g_strcmp0(first, second);
+}
+
 static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
   GTree *dictionary = g_tree_new_full(
-      (GCompareDataFunc) g_strcmp0, NULL,
+      le_bon_mot_engine_dictionary_compare_word, NULL,
       g_free, le_bon_mot_engine_dictionary_destroy_value);
   GFile *dictionary_file = g_file_new_for_uri(LE_BON_MOT_ENGINE_DICTIONARY_FILE_URI);
   GError *error = NULL;

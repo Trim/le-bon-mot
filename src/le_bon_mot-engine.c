@@ -18,6 +18,7 @@
 
 #include <gio/gio.h>
 #include <unicode/ucol.h>
+#include <unicode/utrans.h>
 #include <unicode/ustring.h>
 #include <unicode/utypes.h>
 
@@ -246,6 +247,37 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
     g_error("Unable to find a word");
     exit(2);
   }
+
+  // Transform the word to only base characters
+  UErrorCode status = U_ZERO_ERROR;
+  UChar transliterator_id [100];
+  u_uastrcpy(transliterator_id, "NFD; [:Nonspacing Mark:] Remove; Lower; NFC");
+  UTransliterator* transliterator = utrans_openU(
+    transliterator_id, -1,
+    UTRANS_FORWARD,
+    NULL, -1,
+    NULL,
+    &status);
+  if (U_FAILURE(status)) {
+    g_error("Unable to open unicode transliterator");
+  }
+
+  UChar u_word[100];
+  u_uastrcpy(u_word, word->str);
+  int32_t u_word_limit = u_strlen(u_word);
+  utrans_transUChars(transliterator, u_word, NULL, 100, 0, &u_word_limit, &status);
+  if (U_FAILURE(status)) {
+    g_error("Unable to transliterate");
+  }
+
+  utrans_close(transliterator);
+
+  // Save transliterated word
+  char trans_word[100];
+  u_austrcpy(trans_word, u_word);
+
+  g_string_erase(word, 0, -1);
+  g_string_append(word, trans_word);
 
   return word;
 }

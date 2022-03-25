@@ -147,7 +147,6 @@ static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
   GFileInputStream *dictionary_stream = g_file_read(dictionary_file, NULL, &error);
   if (!dictionary_stream) {
     g_error("Error occured while opening dictionary: code: %d, message: %s", error->code, error->message);
-    exit(1);
   }
 
   gssize read;
@@ -205,7 +204,6 @@ static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
       }
     } else if (read < 0) {
       g_error("Error occured while reading dictionary: code: %d, message: %s", error->code, error->message);
-      exit(1);
     } else {
       break;
     }
@@ -257,7 +255,6 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
   // Finally if word is still unknown give up
   if (!word) {
     g_error("Unable to find a word");
-    exit(2);
   }
 
   // Transform the word to only base characters

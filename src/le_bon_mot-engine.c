@@ -28,6 +28,7 @@ const guint LE_BON_MOT_ENGINE_ROWS = 6;
 const gchar LE_BON_MOT_ENGINE_NULL_LETTER = '.';
 const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MIN = 5;
 const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MAX = 8;
+const guint LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE = 100;
 
 // Le Bon Mot is currently only developped for French users
 const gchar *LE_BON_MOT_ENGINE_COLLATION = "fr_FR";
@@ -142,8 +143,8 @@ static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
   gchar buffer[1024];
   GString *word = g_string_new(NULL);
 
-  UChar u_word_buffer[100];
-  unsigned char key_buffer[100];
+  UChar u_word_buffer[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
+  unsigned char key_buffer[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
   unsigned char* current_key_buffer = key_buffer;
   uint32_t key_buffer_size = sizeof(key_buffer);
   uint32_t key_buffer_expected_size = 0;
@@ -168,15 +169,15 @@ static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
 
             if (key_buffer_expected_size > key_buffer_size) {
               if (current_key_buffer == key_buffer) {
-                current_key_buffer = (unsigned char *) malloc(key_buffer_expected_size);
+                current_key_buffer = g_new(unsigned char, key_buffer_expected_size);
               } else {
-                current_key_buffer = (unsigned char *) realloc(current_key_buffer, key_buffer_expected_size);
+                current_key_buffer = g_realloc_n(current_key_buffer, key_buffer_expected_size, sizeof(unsigned char));
               }
 
               key_buffer_size = ucol_getSortKey(collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
             }
 
-            unsigned char* key = malloc(key_buffer_size);
+            unsigned char* key = g_new(unsigned char, key_buffer_size);
             memcpy(key, key_buffer, key_buffer_size);
 
             // Store key - value
@@ -250,7 +251,7 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
 
   // Transform the word to only base characters
   UErrorCode status = U_ZERO_ERROR;
-  UChar transliterator_id [100];
+  UChar transliterator_id [LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
   u_uastrcpy(transliterator_id, "NFD; [:Nonspacing Mark:] Remove; Lower; NFC");
   UTransliterator* transliterator = utrans_openU(
     transliterator_id, -1,
@@ -262,10 +263,10 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
     g_error("Unable to open unicode transliterator");
   }
 
-  UChar u_word[100];
+  UChar u_word[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
   u_uastrcpy(u_word, word->str);
   int32_t u_word_limit = u_strlen(u_word);
-  utrans_transUChars(transliterator, u_word, NULL, 100, 0, &u_word_limit, &status);
+  utrans_transUChars(transliterator, u_word, NULL, LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE, 0, &u_word_limit, &status);
   if (U_FAILURE(status)) {
     g_error("Unable to transliterate");
   }
@@ -273,7 +274,7 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
   utrans_close(transliterator);
 
   // Save transliterated word
-  char trans_word[100];
+  char trans_word[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
   u_austrcpy(trans_word, u_word);
 
   g_string_erase(word, 0, -1);
@@ -454,8 +455,8 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   // Check if the given word exists in dictionary
  
   // Compute u_word collapse key
-  UChar u_word_buffer[100];
-  unsigned char key_buffer[100];
+  UChar u_word_buffer[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
+  unsigned char key_buffer[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
   unsigned char* current_key_buffer = key_buffer;
   uint32_t key_buffer_size = sizeof(key_buffer);
   uint32_t key_buffer_expected_size = 0;
@@ -464,7 +465,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   key_buffer_expected_size = ucol_getSortKey(priv->collator, u_word_buffer, -1, key_buffer, key_buffer_size);
 
   if (key_buffer_expected_size > key_buffer_size) {
-    current_key_buffer = (unsigned char *) malloc(key_buffer_expected_size);
+    current_key_buffer = g_new(unsigned char, key_buffer_expected_size);
     key_buffer_size = ucol_getSortKey(priv->collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
   }
 

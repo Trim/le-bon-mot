@@ -28,7 +28,8 @@ typedef struct {
 
 static void le_bon_mot_window_display_board (
     LeBonMotWindow* self,
-    gint delay_on_row
+    gboolean apply_delay,
+    guint delay_on_row
     );
 static void
 le_bon_mot_window_on_key_released (
@@ -92,7 +93,7 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   // Engine
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
   self->is_validating = FALSE;
-  le_bon_mot_window_display_board(self, -1);
+  le_bon_mot_window_display_board(self, FALSE, 0);
 
   // Event management
   GtkEventController *controller = gtk_event_controller_key_new();
@@ -148,14 +149,15 @@ static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
 static void
 le_bon_mot_window_display_board (
     LeBonMotWindow *self,
-    gint delay_on_row)
+    gboolean apply_delay,
+    guint delay_on_row)
 {
   g_return_if_fail(LE_BON_MOT_IS_WINDOW(self));
 
   GPtrArray* board = le_bon_mot_engine_get_board_state(self->engine);
 
   guint longest_delay = 0;
-  for (gint rowIndex = 0; rowIndex < board->len; rowIndex +=1 ) {
+  for (guint rowIndex = 0; rowIndex < board->len; rowIndex +=1 ) {
     GPtrArray *row = g_ptr_array_index(board, rowIndex);
     for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
       LeBonMotLetter *letter = g_ptr_array_index(row, columnIndex);
@@ -171,7 +173,7 @@ le_bon_mot_window_display_board (
       label_data->label = GTK_LABEL(child);
       label_data->letter = letter;
 
-      if (self->is_validating && delay_on_row >= 0
+      if (self->is_validating && apply_delay
           && (rowIndex == delay_on_row || rowIndex == delay_on_row + 1)) {
         guint delay = 200 * columnIndex + 200 * row->len * (rowIndex - delay_on_row);
         // Delay display of all letters on delay row
@@ -226,7 +228,6 @@ le_bon_mot_window_on_key_released (
   }
   
   const char *keyname = gdk_keyval_name(keyval);
-  gint delay_on_row = -1;
   // Window grabs focus on any recognized input to avoid propagate keyboard
   // event to other widgets (like the main menu button)
   if (g_regex_match_simple(
@@ -235,14 +236,14 @@ le_bon_mot_window_on_key_released (
         G_REGEX_CASELESS,
         0)) {
     le_bon_mot_engine_add_letter(window->engine, keyname);
-    le_bon_mot_window_display_board(window, delay_on_row);
+    le_bon_mot_window_display_board(window, FALSE, 0);
     gtk_widget_grab_focus(widget);
   } else if (strcmp(keyname, "BackSpace") == 0) {
     le_bon_mot_engine_remove_letter(window->engine);
-    le_bon_mot_window_display_board(window, delay_on_row);
+    le_bon_mot_window_display_board(window, FALSE, 0);
     gtk_widget_grab_focus(widget);
   } else if (strcmp(keyname, "Return") == 0) {
-    delay_on_row = le_bon_mot_engine_get_current_row(window->engine);
+    guint delay_on_row = le_bon_mot_engine_get_current_row(window->engine);
     window->is_validating = TRUE;
     GError *error = NULL;
     le_bon_mot_engine_validate(window->engine, &error);
@@ -253,7 +254,7 @@ le_bon_mot_window_on_key_released (
       adw_toast_overlay_add_toast(window->toast_overlay, toast);
       window->is_validating = FALSE;
     } else {
-      le_bon_mot_window_display_board(window, delay_on_row);
+      le_bon_mot_window_display_board(window, TRUE, delay_on_row);
     }
     gtk_widget_grab_focus(widget);
   }

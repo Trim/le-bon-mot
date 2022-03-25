@@ -1,0 +1,2 @@
+option('french_dictionary_path_uri', type : 'string', value : 'file:///usr/share/dict/french',
+       description : 'File path URI of the French dictionary (one word by line)')

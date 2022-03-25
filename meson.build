@@ -1,6 +1,6 @@
 project('le-bon-mot', 'c',
           version: '0.1.0',
-    meson_version: '>= 0.50.0',
+    meson_version: '>= 0.55.0',
   default_options: [ 'warning_level=2',
                      'c_std=gnu11',
                    ],
@@ -18,6 +18,7 @@ configure_file(
 )
 add_project_arguments([
   '-I' + meson.current_build_dir(),
+  '-DFRENCH_DICTIONARY_PATH_URI="' + get_option('french_dictionary_path_uri') + '"',
 ], language: 'c')
 
 

@@ -32,7 +32,7 @@ const guint LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE = 100;
 
 // Le Bon Mot is currently only developped for French users
 const gchar *LE_BON_MOT_ENGINE_COLLATION = "fr_FR";
-const gchar *LE_BON_MOT_ENGINE_DICTIONARY_FILE_URI = "file:///usr/share/dict/french";
+const gchar *LE_BON_MOT_ENGINE_DICTIONARY_FILE_URI = FRENCH_DICTIONARY_PATH_URI;
 
 static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator);
 static GString *le_bon_mot_engine_word_init(GTree *dictionary);

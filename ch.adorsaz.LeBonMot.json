@@ -1,38 +1,58 @@
 {
-    "app-id" : "ch.adorsaz.LeBonMot",
-    "runtime" : "org.gnome.Platform",
-    "runtime-version" : "master",
-    "sdk" : "org.gnome.Sdk",
-    "command" : "le-bon-mot",
-    "finish-args" : [
-        "--share=network",
-        "--share=ipc",
-        "--socket=fallback-x11",
-        "--device=dri",
-        "--socket=wayland"
-    ],
-    "cleanup" : [
-        "/include",
-        "/lib/pkgconfig",
-        "/man",
-        "/share/doc",
-        "/share/gtk-doc",
-        "/share/man",
-        "/share/pkgconfig",
-        "*.la",
-        "*.a"
-    ],
-    "modules" : [
+  "app-id": "ch.adorsaz.LeBonMot",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "master",
+  "sdk": "org.gnome.Sdk",
+  "command": "le-bon-mot",
+  "finish-args": [
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--socket=wayland"
+  ],
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "/man",
+    "/share/doc",
+    "/share/gtk-doc",
+    "/share/man",
+    "/share/pkgconfig",
+    "*.la",
+    "*.a"
+  ],
+  "modules": [
+    {
+      "name": "le-bon-mot",
+      "builddir": true,
+      "buildsystem": "meson",
+      "sources": [
         {
-            "name" : "le-bon-mot",
-            "builddir" : true,
-            "buildsystem" : "meson",
-            "sources" : [
-                {
-                    "type" : "git",
-                    "url" : "file:///home/adrien/code/le-bon-mot"
-                }
-            ]
+          "type": "git",
+          "url": "https://projects.adorsaz.ch/adrien/le-bon-mot.git",
+          "branch": "main"
         }
-    ]
+      ],
+      "config-opts": [
+        "-Dfrench_dictionary_path_uri=file:///app/share/dictionaries/french"
+      ],
+      "modules": [
+        {
+          "name": "french-dictionary",
+          "buildsystem": "simple",
+          "build-commands": [
+            "mkdir -p /app/share/dictionaries",
+            "cp french /app/share/dictionaries"
+          ],
+          "sources": [
+            {
+              "type": "file",
+              "dest-filename": "french",
+              "url": "https://salsa.debian.org/gpernot/wfrench/-/raw/debian/1.2.7-1/french?inline=false",
+              "sha256": "33b3a15b7c47c4b85aaafa7c8b41d3fee9c7ca1383381bb8f710372ce7474f06"
+            }
+          ]
+        }
+      ]
+    }
+  ]
 }

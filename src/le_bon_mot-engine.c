@@ -58,7 +58,10 @@ typedef struct {
   gboolean is_playable;
 } DictionaryWord;
 
-typedef struct {
+struct _LeBonMotEngine
+{
+  GObject parent_instance;
+  // Engine properties
   GString *word;
   GPtrArray *alphabet;
   GPtrArray *board;
@@ -67,27 +70,23 @@ typedef struct {
   // TODO collator and dictionary should be moved to class properties
   GTree *dictionary;
   UCollator *collator;
-} LeBonMotEnginePrivate;
-
-struct _LeBonMotEngine
-{
-  GObject parent_instance;
 };
 
-G_DEFINE_TYPE_WITH_PRIVATE(LeBonMotEngine, le_bon_mot_engine, G_TYPE_OBJECT);
+G_DEFINE_TYPE(LeBonMotEngine, le_bon_mot_engine, G_TYPE_OBJECT);
 
 static void
 le_bon_mot_engine_dispose (GObject *gobject)
 {
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private (LE_BON_MOT_ENGINE (gobject));
+  LE_BON_MOT_IS_ENGINE(gobject);
+  LeBonMotEngine *self = LE_BON_MOT_ENGINE(gobject);
 
-  g_ptr_array_unref(priv->alphabet);
-  g_tree_unref(priv->dictionary);
+  g_ptr_array_unref(self->alphabet);
+  g_tree_unref(self->dictionary);
 
   // Board is initialized to cascade unref to rows and free letters
-  g_ptr_array_unref(priv->board);
+  g_ptr_array_unref(self->board);
 
-  ucol_close(priv->collator);
+  ucol_close(self->collator);
 
   G_OBJECT_CLASS (le_bon_mot_engine_parent_class)->dispose (gobject);
 }
@@ -101,12 +100,9 @@ le_bon_mot_engine_class_init(LeBonMotEngineClass *klass) {
 
 static void
 le_bon_mot_engine_init(LeBonMotEngine *self) {
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
-
-  
   // Unicode collator give more tools to create dictionary
   UErrorCode status = U_ZERO_ERROR;
-  priv->collator = ucol_open(LE_BON_MOT_ENGINE_COLLATION, &status);
+  self->collator = ucol_open(LE_BON_MOT_ENGINE_COLLATION, &status);
 
   if (U_FAILURE(status)) {
     g_error("Unable to open unicode collator");
@@ -114,14 +110,14 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
 
   // Primary strength allow to work with only base characters
   // (neither case sensitive, nor accent sensitive)
-  ucol_setStrength(priv->collator, UCOL_PRIMARY);
+  ucol_setStrength(self->collator, UCOL_PRIMARY);
 
-  priv->dictionary = le_bon_mot_engine_dictionary_init(priv->collator);
-  priv->word = le_bon_mot_engine_word_init(priv->dictionary);
-  priv->alphabet = le_bon_mot_engine_alphabet_init(priv->word);
-  priv->board = le_bon_mot_engine_board_init(priv->word); 
-  priv->current_row = 0;
-  priv->state = LE_BON_MOT_ENGINE_STATE_CONTINUE;
+  self->dictionary = le_bon_mot_engine_dictionary_init(self->collator);
+  self->word = le_bon_mot_engine_word_init(self->dictionary);
+  self->alphabet = le_bon_mot_engine_alphabet_init(self->word);
+  self->board = le_bon_mot_engine_board_init(self->word); 
+  self->current_row = 0;
+  self->state = LE_BON_MOT_ENGINE_STATE_CONTINUE;
 }
 
 static void le_bon_mot_engine_dictionary_destroy_value(gpointer data) {
@@ -376,27 +372,25 @@ static gpointer le_bon_mot_engine_board_copy_row (gconstpointer src, G_GNUC_UNUS
 
 GPtrArray* le_bon_mot_engine_get_board_state(LeBonMotEngine* self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), NULL);
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  return g_ptr_array_copy(priv->board, le_bon_mot_engine_board_copy_row, NULL);
+  return g_ptr_array_copy(self->board, le_bon_mot_engine_board_copy_row, NULL);
 }
 
 void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
 {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS || priv->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
+  if (self->current_row >= LE_BON_MOT_ENGINE_ROWS || self->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
     return;
   }
   
-  GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
+  GPtrArray* row = g_ptr_array_index(self->board, self->current_row);
 
   for (guint col = 0; col < row->len; col += 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
     if (letter->letter == LE_BON_MOT_ENGINE_NULL_LETTER) {
       // Ignore input if user write the first letter on second position
-      if (col == 1 && newLetter[0] == priv->word->str[0]) {
+      if (col == 1 && newLetter[0] == self->word->str[0]) {
         break;
       }
       letter->letter = newLetter[0];
@@ -409,13 +403,12 @@ void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
 void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
 {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
 
-  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS  || priv->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
+  if (self->current_row >= LE_BON_MOT_ENGINE_ROWS  || self->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
     return;
   }
   
-  GPtrArray* row = g_ptr_array_index(priv->board, priv->current_row);
+  GPtrArray* row = g_ptr_array_index(self->board, self->current_row);
 
   for (guint col = row->len - 1; col <= row->len; col -= 1) {
     LeBonMotLetter *letter = g_ptr_array_index(row, col);
@@ -441,12 +434,10 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   g_return_if_fail (error == NULL || *error == NULL);
 
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
-  
-  GPtrArray *row = g_ptr_array_index(priv->board, priv->current_row);
+  GPtrArray *row = g_ptr_array_index(self->board, self->current_row);
   GString *word = g_string_new(NULL);
  
-  if (priv->current_row >= LE_BON_MOT_ENGINE_ROWS  || priv->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
+  if (self->current_row >= LE_BON_MOT_ENGINE_ROWS  || self->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
     return;
   }
 
@@ -475,14 +466,14 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   uint32_t key_buffer_expected_size = 0;
 
   u_uastrcpy(u_word_buffer, word->str);
-  key_buffer_expected_size = ucol_getSortKey(priv->collator, u_word_buffer, -1, key_buffer, key_buffer_size);
+  key_buffer_expected_size = ucol_getSortKey(self->collator, u_word_buffer, -1, key_buffer, key_buffer_size);
 
   if (key_buffer_expected_size > key_buffer_size) {
     current_key_buffer = g_new(unsigned char, key_buffer_expected_size);
-    key_buffer_size = ucol_getSortKey(priv->collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
+    key_buffer_size = ucol_getSortKey(self->collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
   }
 
-  gboolean word_exists = g_tree_lookup(priv->dictionary, current_key_buffer) != NULL;
+  gboolean word_exists = g_tree_lookup(self->dictionary, current_key_buffer) != NULL;
 
   if (current_key_buffer != key_buffer) {
     g_free(current_key_buffer);
@@ -498,8 +489,8 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 
   // Reset alphabet found
-  for (guint i = 0; i < priv->alphabet->len; i += 1) {
-    LeBonMotLetterPrivate *alphabet = g_ptr_array_index(priv->alphabet, i);
+  for (guint i = 0; i < self->alphabet->len; i += 1) {
+    LeBonMotLetterPrivate *alphabet = g_ptr_array_index(self->alphabet, i);
     alphabet->found = 0;
   }
 
@@ -513,14 +504,14 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
     // Alphabet is used to store found letter count
     guint* alphabet_index = g_new(guint, 1);
     LeBonMotLetterPrivate *alphabet = NULL;
-    if (g_ptr_array_find_with_equal_func(priv->alphabet, letter,
+    if (g_ptr_array_find_with_equal_func(self->alphabet, letter,
           le_bon_mot_engine_compare_letter_private_with_letter,
           alphabet_index)) {
-      alphabet = g_ptr_array_index(priv->alphabet, *alphabet_index);
+      alphabet = g_ptr_array_index(self->alphabet, *alphabet_index);
     }
     g_return_if_fail(alphabet);
 
-    if (priv->word->str[col] == letter->letter) {
+    if (self->word->str[col] == letter->letter) {
       letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
       alphabet->found++;
       well_placed++;
@@ -528,7 +519,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 
   if (well_placed == row->len) {
-    priv->state = LE_BON_MOT_ENGINE_STATE_WON;
+    self->state = LE_BON_MOT_ENGINE_STATE_WON;
     return;
   }
 
@@ -539,14 +530,14 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
     // Alphabet is used to store found letter count
     guint* alphabet_index = g_new(guint, 1);
     LeBonMotLetterPrivate *alphabet = NULL;
-    if (g_ptr_array_find_with_equal_func(priv->alphabet, letter,
+    if (g_ptr_array_find_with_equal_func(self->alphabet, letter,
           le_bon_mot_engine_compare_letter_private_with_letter,
           alphabet_index)) {
-      alphabet = g_ptr_array_index(priv->alphabet, *alphabet_index);
+      alphabet = g_ptr_array_index(self->alphabet, *alphabet_index);
     }
     g_return_if_fail(alphabet);
 
-    if (priv->word->str[col] != letter->letter) {
+    if (self->word->str[col] != letter->letter) {
       if (alphabet->found < alphabet->position->len) {
         letter->state = LE_BON_MOT_LETTER_PRESENT;
         alphabet->found++;
@@ -557,26 +548,24 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 
   // Move to next row
-  priv->current_row++;
+  self->current_row++;
 
-  if (priv->current_row < LE_BON_MOT_ENGINE_ROWS) {
-    GPtrArray* nextRow = g_ptr_array_index(priv->board, priv->current_row);
+  if (self->current_row < LE_BON_MOT_ENGINE_ROWS) {
+    GPtrArray* nextRow = g_ptr_array_index(self->board, self->current_row);
     LeBonMotLetter* firstLetter = g_ptr_array_index(nextRow, 0);
-    firstLetter->letter = priv->word->str[0];
+    firstLetter->letter = self->word->str[0];
   } else {
     // Cannot play anymore game is lost
-    priv->state = LE_BON_MOT_ENGINE_STATE_LOST;
+    self->state = LE_BON_MOT_ENGINE_STATE_LOST;
   }
 }
 
 guint le_bon_mot_engine_get_current_row (LeBonMotEngine *self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), -1);
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
-  return priv->current_row;
+  return self->current_row;
 }
 
 LeBonMotEngineState le_bon_mot_engine_get_game_state(LeBonMotEngine *self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), -1);
-  LeBonMotEnginePrivate *priv = le_bon_mot_engine_get_instance_private(self);
-  return priv->state;
+  return self->state;
 }

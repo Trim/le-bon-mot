@@ -24,6 +24,11 @@
 
 #include "le_bon_mot-engine.h"
 
+// Default French dictionary path uri if not defined
+#ifndef FRENCH_DICTIONARY_PATH_URI
+  #define FRENCH_DICTIONARY_PATH_URI "file:///use/share/dict/french"
+#endif
+
 const guint LE_BON_MOT_ENGINE_ROWS = 6;
 const gchar LE_BON_MOT_ENGINE_NULL_LETTER = '.';
 const guint LE_BON_MOT_ENGINE_WORD_LENGTH_MIN = 5;

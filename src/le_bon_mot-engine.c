@@ -40,7 +40,7 @@ const gchar *LE_BON_MOT_ENGINE_COLLATION = "fr_FR";
 const gchar *LE_BON_MOT_ENGINE_DICTIONARY_FILE_URI = FRENCH_DICTIONARY_PATH_URI;
 
 static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator);
-static GString *le_bon_mot_engine_word_init(GTree *dictionary);
+static void le_bon_mot_engine_word_init(LeBonMotEngine* self);
 static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word);
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
 
@@ -63,6 +63,7 @@ struct _LeBonMotEngine
   GObject parent_instance;
   // Engine properties
   GString *word;
+  GString *dictionary_word;
   GPtrArray *alphabet;
   GPtrArray *board;
   guint current_row;
@@ -92,10 +93,23 @@ le_bon_mot_engine_dispose (GObject *gobject)
 }
 
 static void
+le_bon_mot_engine_finalize (GObject *gobject)
+{
+  LE_BON_MOT_IS_ENGINE(gobject);
+  LeBonMotEngine *self = LE_BON_MOT_ENGINE(gobject);
+
+  g_string_free(self->word, TRUE);
+  g_string_free(self->dictionary_word, TRUE);
+
+  G_OBJECT_CLASS (le_bon_mot_engine_parent_class)->finalize (gobject);
+}
+
+static void
 le_bon_mot_engine_class_init(LeBonMotEngineClass *klass) {
   GObjectClass *g_object_class = G_OBJECT_CLASS(klass);
 
   g_object_class->dispose = le_bon_mot_engine_dispose;
+  g_object_class->finalize = le_bon_mot_engine_finalize;
 }
 
 static void
@@ -113,7 +127,7 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
   ucol_setStrength(self->collator, UCOL_PRIMARY);
 
   self->dictionary = le_bon_mot_engine_dictionary_init(self->collator);
-  self->word = le_bon_mot_engine_word_init(self->dictionary);
+  le_bon_mot_engine_word_init(self);
   self->alphabet = le_bon_mot_engine_alphabet_init(self->word);
   self->board = le_bon_mot_engine_board_init(self->word); 
   self->current_row = 0;
@@ -219,10 +233,10 @@ static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
   return dictionary;
 }
 
-static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
-  guint offset = g_random_int_range(0, g_tree_nnodes(dictionary));
+static void le_bon_mot_engine_word_init(LeBonMotEngine* self) {
+  guint offset = g_random_int_range(0, g_tree_nnodes(self->dictionary));
   guint word_length = g_random_int_range(LE_BON_MOT_ENGINE_WORD_LENGTH_MIN, LE_BON_MOT_ENGINE_WORD_LENGTH_MAX);
-  GTreeNode *node = g_tree_node_first(dictionary);
+  GTreeNode *node = g_tree_node_first(self->dictionary);
   GString *word = NULL;
   // First lookup for word from random range
   guint i = 0;
@@ -231,7 +245,7 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
     DictionaryWord *dword = g_tree_node_value(node);
     // Lookup first playable value from the random offset
     if (i >= offset && dword->is_playable && g_utf8_strlen(dword->word->str, -1) == word_length) {
-      word = dword->word;
+      word = g_string_new(dword->word->str);
       break;
     }
     i++;
@@ -240,13 +254,13 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
 
   // Second lookup from start (if random has given last value and its not playable)
   if (!word) {
-    node = g_tree_node_first(dictionary);
+    node = g_tree_node_first(self->dictionary);
     while (node)
     {
       DictionaryWord *dword = g_tree_node_value(node);
       // Lookup first playable value from the random offset
       if (dword->is_playable && g_utf8_strlen(dword->word->str, -1) == word_length) {
-        word = dword->word;
+        word = g_string_new(dword->word->str);
         break;
       }
       node = g_tree_node_next(node);
@@ -257,6 +271,14 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
   if (!word) {
     g_error("Unable to find a word");
   }
+
+#ifdef LE_BON_MOT_ENGINE_FORCE_WORD
+  g_string_erase(word, 0, -1);
+  g_string_append(word, LE_BON_MOT_ENGINE_FORCE_WORD);
+#endif
+
+  // Save the word from dictionary to display it in case of loose
+  self->dictionary_word = g_string_new(word->str);
 
   // Transform the word to only base characters
   UErrorCode status = U_ZERO_ERROR;
@@ -289,7 +311,7 @@ static GString *le_bon_mot_engine_word_init(GTree *dictionary) {
   g_string_erase(word, 0, -1);
   g_string_append(word, trans_word);
 
-  return word;
+  self->word = word;
 }
 
 static void le_bon_mot_engine_letter_private_free(gpointer data) {
@@ -568,4 +590,9 @@ guint le_bon_mot_engine_get_current_row (LeBonMotEngine *self) {
 LeBonMotEngineState le_bon_mot_engine_get_game_state(LeBonMotEngine *self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), -1);
   return self->state;
+}
+
+GString *le_bon_mot_engine_get_word(LeBonMotEngine *self) {
+  g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), NULL);
+  return g_string_new(self->dictionary_word->str);
 }

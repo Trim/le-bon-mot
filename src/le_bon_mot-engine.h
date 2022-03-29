@@ -80,4 +80,6 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error);
 
 guint le_bon_mot_engine_get_current_row (LeBonMotEngine *self);
 
+GString *le_bon_mot_engine_get_word(LeBonMotEngine *self);
+
 G_END_DECLS

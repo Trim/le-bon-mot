@@ -133,10 +133,17 @@ static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
   g_return_val_if_fail(LE_BON_MOT_IS_WINDOW(user_data), G_SOURCE_REMOVE);
   LeBonMotWindow *self = user_data;
   LeBonMotEngineState state = le_bon_mot_engine_get_game_state(self->engine);
-  if (state != LE_BON_MOT_ENGINE_STATE_CONTINUE) { 
-      AdwToast *toast = adw_toast_new("Game Over");
-      if (state == LE_BON_MOT_ENGINE_STATE_WON) {
-        adw_toast_set_title(toast, "Congratulation you won !");
+  if (state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
+      AdwToast *toast = adw_toast_new("Congratulation you won !");
+      if (state == LE_BON_MOT_ENGINE_STATE_LOST) {
+        GString *word = le_bon_mot_engine_get_word(self->engine);
+        GString *title = g_string_new(NULL);
+        if (!title) {
+          g_error("Unable to retrieve word from engine.");
+        }
+        g_string_printf(title, "Game Over ! The word was: %s.", word->str);
+        adw_toast_set_title(toast, title->str);
+        g_string_free(title, TRUE);
       }
       adw_toast_set_timeout(toast, 0);
       adw_toast_set_priority(toast, ADW_TOAST_PRIORITY_NORMAL);

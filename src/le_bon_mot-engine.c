@@ -39,7 +39,7 @@ const guint LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE = 100;
 const gchar *LE_BON_MOT_ENGINE_COLLATION = "fr_FR";
 const gchar *LE_BON_MOT_ENGINE_DICTIONARY_FILE_URI = FRENCH_DICTIONARY_PATH_URI;
 
-static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator);
+static GTree *le_bon_mot_engine_class_dictionary_init(UCollator *collator);
 static void le_bon_mot_engine_word_init(LeBonMotEngine* self);
 static GPtrArray *le_bon_mot_engine_alphabet_init(GString *word);
 static GPtrArray *le_bon_mot_engine_board_init(GString *word);
@@ -61,6 +61,7 @@ typedef struct {
 struct _LeBonMotEngine
 {
   GObject parent_instance;
+
   // Engine properties
   GString *word;
   GString *dictionary_word;
@@ -68,7 +69,12 @@ struct _LeBonMotEngine
   GPtrArray *board;
   guint current_row;
   LeBonMotEngineState state;
-  // TODO collator and dictionary should be moved to class properties
+};
+
+struct _LeBonMotEngineClass {
+  GObjectClass parent_class;
+
+  // Class Members
   GTree *dictionary;
   UCollator *collator;
 };
@@ -82,12 +88,9 @@ le_bon_mot_engine_dispose (GObject *gobject)
   LeBonMotEngine *self = LE_BON_MOT_ENGINE(gobject);
 
   g_ptr_array_unref(self->alphabet);
-  g_tree_unref(self->dictionary);
 
   // Board is initialized to cascade unref to rows and free letters
   g_ptr_array_unref(self->board);
-
-  ucol_close(self->collator);
 
   G_OBJECT_CLASS (le_bon_mot_engine_parent_class)->dispose (gobject);
 }
@@ -108,15 +111,15 @@ static void
 le_bon_mot_engine_class_init(LeBonMotEngineClass *klass) {
   GObjectClass *g_object_class = G_OBJECT_CLASS(klass);
 
+  // Override methods
   g_object_class->dispose = le_bon_mot_engine_dispose;
   g_object_class->finalize = le_bon_mot_engine_finalize;
-}
 
-static void
-le_bon_mot_engine_init(LeBonMotEngine *self) {
+  // Setup class members
+  
   // Unicode collator give more tools to create dictionary
   UErrorCode status = U_ZERO_ERROR;
-  self->collator = ucol_open(LE_BON_MOT_ENGINE_COLLATION, &status);
+  klass->collator = ucol_open(LE_BON_MOT_ENGINE_COLLATION, &status);
 
   if (U_FAILURE(status)) {
     g_error("Unable to open unicode collator");
@@ -124,9 +127,14 @@ le_bon_mot_engine_init(LeBonMotEngine *self) {
 
   // Primary strength allow to work with only base characters
   // (neither case sensitive, nor accent sensitive)
-  ucol_setStrength(self->collator, UCOL_PRIMARY);
+  ucol_setStrength(klass->collator, UCOL_PRIMARY);
 
-  self->dictionary = le_bon_mot_engine_dictionary_init(self->collator);
+  // Read the dictionary file once
+  klass->dictionary = le_bon_mot_engine_class_dictionary_init(klass->collator);
+}
+
+static void
+le_bon_mot_engine_init(LeBonMotEngine *self) {
   le_bon_mot_engine_word_init(self);
   self->alphabet = le_bon_mot_engine_alphabet_init(self->word);
   self->board = le_bon_mot_engine_board_init(self->word); 
@@ -151,7 +159,7 @@ le_bon_mot_engine_dictionary_compare_word (
   return g_strcmp0(first, second);
 }
 
-static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
+static GTree *le_bon_mot_engine_class_dictionary_init(UCollator *collator) {
   GTree *dictionary = g_tree_new_full(
       le_bon_mot_engine_dictionary_compare_word, NULL,
       g_free, le_bon_mot_engine_dictionary_destroy_value);
@@ -234,9 +242,10 @@ static GTree *le_bon_mot_engine_dictionary_init(UCollator *collator) {
 }
 
 static void le_bon_mot_engine_word_init(LeBonMotEngine* self) {
-  guint offset = g_random_int_range(0, g_tree_nnodes(self->dictionary));
+  LeBonMotEngineClass* klass = LE_BON_MOT_ENGINE_GET_CLASS(self);
+  guint offset = g_random_int_range(0, g_tree_nnodes(klass->dictionary));
   guint word_length = g_random_int_range(LE_BON_MOT_ENGINE_WORD_LENGTH_MIN, LE_BON_MOT_ENGINE_WORD_LENGTH_MAX);
-  GTreeNode *node = g_tree_node_first(self->dictionary);
+  GTreeNode *node = g_tree_node_first(klass->dictionary);
   GString *word = NULL;
   // First lookup for word from random range
   guint i = 0;
@@ -254,7 +263,7 @@ static void le_bon_mot_engine_word_init(LeBonMotEngine* self) {
 
   // Second lookup from start (if random has given last value and its not playable)
   if (!word) {
-    node = g_tree_node_first(self->dictionary);
+    node = g_tree_node_first(klass->dictionary);
     while (node)
     {
       DictionaryWord *dword = g_tree_node_value(node);
@@ -456,6 +465,8 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   g_return_if_fail (error == NULL || *error == NULL);
 
+  LeBonMotEngineClass* klass = LE_BON_MOT_ENGINE_GET_CLASS(self);
+
   GPtrArray *row = g_ptr_array_index(self->board, self->current_row);
   GString *word = g_string_new(NULL);
  
@@ -488,14 +499,14 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   uint32_t key_buffer_expected_size = 0;
 
   u_uastrcpy(u_word_buffer, word->str);
-  key_buffer_expected_size = ucol_getSortKey(self->collator, u_word_buffer, -1, key_buffer, key_buffer_size);
+  key_buffer_expected_size = ucol_getSortKey(klass->collator, u_word_buffer, -1, key_buffer, key_buffer_size);
 
   if (key_buffer_expected_size > key_buffer_size) {
     current_key_buffer = g_new(unsigned char, key_buffer_expected_size);
-    key_buffer_size = ucol_getSortKey(self->collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
+    key_buffer_size = ucol_getSortKey(klass->collator, u_word_buffer, -1, current_key_buffer, key_buffer_expected_size);
   }
 
-  gboolean word_exists = g_tree_lookup(self->dictionary, current_key_buffer) != NULL;
+  gboolean word_exists = g_tree_lookup(klass->dictionary, current_key_buffer) != NULL;
 
   if (current_key_buffer != key_buffer) {
     g_free(current_key_buffer);

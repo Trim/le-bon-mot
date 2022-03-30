@@ -19,7 +19,7 @@
 #pragma once
 
 #include <glib-object.h>
-#include "glib-2.0/glib.h"
+#include <glib-2.0/glib.h>
 
 G_BEGIN_DECLS
 
@@ -59,8 +59,54 @@ typedef enum {
 /*
  * Type declaration.
  * */
+
 #define LE_BON_MOT_TYPE_ENGINE le_bon_mot_engine_get_type ()
-G_DECLARE_FINAL_TYPE(LeBonMotEngine, le_bon_mot_engine, LE_BON_MOT, ENGINE, GObject);
+
+/*
+ * This work is normally done by G_DECLARE_FINAL_TYPE macro
+ * We cannot use this macro directly, because we need to add class members
+ * */
+GType le_bon_mot_engine_get_type(void);
+
+G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+
+typedef struct _LeBonMotEngine LeBonMotEngine;
+
+typedef struct _LeBonMotEngineClass LeBonMotEngineClass;
+
+_GLIB_DEFINE_AUTOPTR_CHAINUP (LeBonMotEngine, GObject)
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (LeBonMotEngineClass, g_type_class_unref)
+
+G_GNUC_UNUSED static inline LeBonMotEngine* LE_BON_MOT_ENGINE (gpointer ptr)
+{
+  return G_TYPE_CHECK_INSTANCE_CAST (ptr, le_bon_mot_engine_get_type(), LeBonMotEngine);
+}
+
+G_GNUC_UNUSED static inline LeBonMotEngineClass *LE_BON_MOT_ENGINE_CLASS (gpointer ptr)
+{
+  return G_TYPE_CHECK_CLASS_CAST (ptr, le_bon_mot_engine_get_type (), LeBonMotEngineClass);
+}
+
+G_GNUC_UNUSED static inline gboolean LE_BON_MOT_IS_ENGINE (gpointer ptr)
+{
+  return G_TYPE_CHECK_INSTANCE_TYPE (ptr, le_bon_mot_engine_get_type());
+}
+
+G_GNUC_UNUSED static inline gboolean LE_BON_MOT_IS_ENGINE_CLASS (gpointer ptr)
+{
+  return G_TYPE_CHECK_CLASS_TYPE (ptr, le_bon_mot_engine_get_type());
+}
+
+G_GNUC_UNUSED static inline LeBonMotEngineClass * LE_BON_MOT_ENGINE_GET_CLASS (gpointer ptr)
+{
+  return G_TYPE_INSTANCE_GET_CLASS (ptr, le_bon_mot_engine_get_type(), LeBonMotEngineClass);
+}
+
+G_GNUC_END_IGNORE_DEPRECATIONS
+
+/*
+ * End of G_DECLARE_FINAL_TYPE macro work
+ * */
 
 /*
  * Public method definitions.

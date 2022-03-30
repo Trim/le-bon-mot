@@ -117,6 +117,10 @@ LeBonMotEngine *le_bon_mot_engine_new(void);
 // (rows and columns) of LeBonMotLetter
 GPtrArray* le_bon_mot_engine_get_board_state (LeBonMotEngine *self);
 
+// Return the current game alphabet state inside a GPtrArray
+// of LeBonMotLetter
+GPtrArray* le_bon_mot_engine_get_alphabet_state (LeBonMotEngine *self);
+
 void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *letter);
 
 void le_bon_mot_engine_remove_letter (LeBonMotEngine *self);

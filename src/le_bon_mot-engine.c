@@ -407,6 +407,12 @@ GPtrArray* le_bon_mot_engine_get_board_state(LeBonMotEngine* self) {
   return g_ptr_array_copy(self->board, le_bon_mot_engine_board_copy_row, NULL);
 }
 
+GPtrArray* le_bon_mot_engine_get_alphabet_state (LeBonMotEngine *self) {
+  g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), NULL);
+
+  return g_ptr_array_copy(self->alphabet, le_bon_mot_engine_board_copy_letter, NULL);
+}
+
 void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
 {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
@@ -546,6 +552,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
 
     if (self->word->str[col] == letter->letter) {
       letter->state = LE_BON_MOT_LETTER_WELL_PLACED;
+      alphabet->state = LE_BON_MOT_LETTER_WELL_PLACED;
       alphabet->found++;
       well_placed++;
     }
@@ -573,9 +580,13 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
     if (self->word->str[col] != letter->letter) {
       if (alphabet->found < alphabet->position->len) {
         letter->state = LE_BON_MOT_LETTER_PRESENT;
+        if (alphabet->state != LE_BON_MOT_LETTER_WELL_PLACED) {
+          alphabet->state = LE_BON_MOT_LETTER_PRESENT;
+        }
         alphabet->found++;
       } else {
         letter->state = LE_BON_MOT_LETTER_NOT_PRESENT;
+        alphabet->state = LE_BON_MOT_LETTER_NOT_PRESENT;
       }
     }
   }

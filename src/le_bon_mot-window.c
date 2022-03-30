@@ -38,6 +38,11 @@ le_bon_mot_window_on_key_released (
     guint keycode,
     GdkModifierType state,
     gpointer user_data);
+static void
+le_bon_mot_window_action_new_game (
+    GtkWidget *sender,
+    G_GNUC_UNUSED const char *action,
+    G_GNUC_UNUSED GVariant      *parameter);
 
 struct _LeBonMotWindow
 {
@@ -76,6 +81,8 @@ le_bon_mot_window_class_init (LeBonMotWindowClass *klass)
   gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, header_bar);
   gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, game_grid);
   gtk_widget_class_bind_template_child (widget_class, LeBonMotWindow, toast_overlay);
+
+  gtk_widget_class_install_action(widget_class, "game.new", NULL, le_bon_mot_window_action_new_game);
 }
 
 static void
@@ -89,7 +96,6 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   gtk_css_provider_load_from_resource(self->css_provider, "/ch/adorsaz/LeBonMot/le_bon_mot-window.css");  
   gtk_style_context_add_provider_for_display(display, GTK_STYLE_PROVIDER (self->css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
-
   // Engine
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
   self->is_validating = FALSE;
@@ -102,6 +108,28 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   g_signal_connect(controller, "key-released", G_CALLBACK(le_bon_mot_window_on_key_released), NULL);
 
   gtk_widget_grab_focus(GTK_WIDGET (self));
+}
+
+static void
+le_bon_mot_window_action_new_game (
+    GtkWidget *sender,
+    G_GNUC_UNUSED const char *action,
+    G_GNUC_UNUSED GVariant      *parameter)
+{
+  g_return_if_fail(LE_BON_MOT_IS_WINDOW(sender));
+  LeBonMotWindow *self = LE_BON_MOT_WINDOW (sender);
+
+  // Reset Grid
+  GPtrArray* board = le_bon_mot_engine_get_board_state(self->engine);
+  for (guint i = 0; i < board->len; i += 1) {
+    gtk_grid_remove_row(self->game_grid, 0);
+  }
+
+  // Reset Engine
+  g_clear_object(&self->engine);
+  self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
+  self->is_validating = FALSE;
+  le_bon_mot_window_display_board(self, FALSE, 0);
 }
 
 static gboolean le_bon_mot_window_set_label_data (gpointer user_data) {
@@ -135,6 +163,8 @@ static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
   LeBonMotEngineState state = le_bon_mot_engine_get_game_state(self->engine);
   if (state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
       AdwToast *toast = adw_toast_new("Congratulation you won !");
+      adw_toast_set_button_label(toast, "New game");
+      adw_toast_set_action_name(toast, "game.new");
       if (state == LE_BON_MOT_ENGINE_STATE_LOST) {
         GString *word = le_bon_mot_engine_get_word(self->engine);
         GString *title = g_string_new(NULL);

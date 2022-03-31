@@ -130,6 +130,11 @@ le_bon_mot_window_action_new_game (
     gtk_grid_remove_row(self->game_grid, 0);
   }
 
+  // Reset Alphabet Grid
+  for (guint i = 0; i < 2; i += 1) {
+    gtk_grid_remove_row(self->alphabet_grid, 0);
+  }
+
   // Reset Engine
   g_clear_object(&self->engine);
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
@@ -255,8 +260,8 @@ le_bon_mot_window_display_alphabet (
 
   for (guint alphaIndex = 0; alphaIndex < alphabet->len; alphaIndex +=1 ) {
     LeBonMotLetter *letter = g_ptr_array_index(alphabet, alphaIndex);
-    guint rowIndex = alphaIndex / 9;
-    guint columnIndex = alphaIndex % 9;
+    guint rowIndex = alphaIndex / 13;
+    guint columnIndex = alphaIndex % 13;
     GtkWidget* child = gtk_grid_get_child_at(self->alphabet_grid, columnIndex, rowIndex);
     if (!child) {
       child = gtk_label_new(NULL);
@@ -322,7 +327,7 @@ le_bon_mot_window_on_key_released (
     le_bon_mot_engine_validate(window->engine, &error);
     if (error) {
       AdwToast *toast = adw_toast_new(error->message);
-      adw_toast_set_timeout(toast, 5);
+      adw_toast_set_timeout(toast, 2);
       adw_toast_set_priority(toast, ADW_TOAST_PRIORITY_NORMAL);
       adw_toast_overlay_add_toast(window->toast_overlay, toast);
       window->is_validating = FALSE;

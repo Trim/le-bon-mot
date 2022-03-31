@@ -131,11 +131,6 @@ le_bon_mot_window_action_new_game (
     gtk_grid_remove_row(self->game_grid, 0);
   }
 
-  // Reset Alphabet Grid
-  for (guint i = 0; i < 2; i += 1) {
-    gtk_grid_remove_row(self->alphabet_grid, 0);
-  }
-
   // Reset Engine
   g_clear_object(&self->engine);
   self->engine = g_object_new(LE_BON_MOT_TYPE_ENGINE, NULL);
@@ -153,6 +148,11 @@ static gboolean le_bon_mot_window_set_label_data (gpointer user_data) {
   g_string_append_c(labelString, label_data->letter->letter);
   gtk_label_set_text(GTK_LABEL (label_data->label), labelString->str);
   g_string_free(labelString, TRUE);
+
+  // Reset CSS classes
+  gtk_widget_remove_css_class(GTK_WIDGET(label_data->label), "not_present");
+  gtk_widget_remove_css_class(GTK_WIDGET(label_data->label), "well_placed");
+  gtk_widget_remove_css_class(GTK_WIDGET(label_data->label), "present");
 
   switch (label_data->letter->state) {
     case LE_BON_MOT_LETTER_NOT_PRESENT:

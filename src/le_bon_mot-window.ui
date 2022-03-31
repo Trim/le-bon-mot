@@ -2,8 +2,6 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <template class="LeBonMotWindow" parent="AdwApplicationWindow">
-    <property name="default-width">400</property>
-    <property name="default-height">400</property>
     <property name="title">Le Bon Mot</property>
     <property name="focusable">TRUE</property>
     <style>
@@ -45,7 +43,7 @@
               <property name="halign">GTK_ALIGN_CENTER</property>
               <property name="valign">GTK_ALIGN_CENTER</property>
               <style>
-                <class name="game_grid" />
+                <class name="alphabet_grid" />
                 <class name="card" />
               </style>
             </object>

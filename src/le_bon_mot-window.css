@@ -1,4 +1,15 @@
-grid.game_grid label
+grid.game_grid
+{
+  margin: 3em;
+}
+
+grid.alphabet_grid
+{
+  margin: 1em;
+}
+
+grid.game_grid label,
+grid.alphabet_grid label
 {
   margin: 0.5em;
   padding: 0.5em;
@@ -12,17 +23,28 @@ grid.game_grid label
   transition-duration: 500ms, 1200ms;
 }
 
-grid.game_grid label.well_placed
+grid.alphabet_grid label
+{
+  margin: 0.3em;
+  padding: 0.3em;
+  min-width: 0.9em;
+  min-height: 0.9em;
+}
+
+grid.game_grid label.well_placed,
+grid.alphabet_grid label.well_placed
 {
   background-color: @success_bg_color;
 }
 
-grid.game_grid label.present
+grid.game_grid label.present,
+grid.alphabet_grid label.present
 {
   background-color: @warning_bg_color;
 }
 
-grid.game_grid label.not_present
+grid.game_grid label.not_present,
+grid.alphabet_grid label.not_present
 {
   background-color: alpha(@light_4, 0.5);
 }

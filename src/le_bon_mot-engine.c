@@ -22,6 +22,9 @@
 #include <unicode/ustring.h>
 #include <unicode/utypes.h>
 
+#define GETTEXT_PACKAGE "le_bon_mot"
+#include <glib/gi18n.h>
+
 #include "le_bon_mot-engine.h"
 
 // Default French dictionary path uri if not defined
@@ -490,7 +493,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
       g_set_error_literal(
           error, LE_BON_MOT_ENGINE_ERROR,
           LE_BON_MOT_ENGINE_ERROR_LINE_INCOMPLETE,
-          "You must fill all letters.");
+          _("You must fill all letters."));
       return;
     }
   }
@@ -523,7 +526,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
     g_set_error_literal(
         error, LE_BON_MOT_ENGINE_ERROR,
         LE_BON_MOT_ENGINE_ERROR_WORD_UNKOWN,
-        "This word doesn't exist in our dictionary.");
+        _("This word doesn't exist in our dictionary."));
     return;
   }
 

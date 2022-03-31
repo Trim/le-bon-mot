@@ -4,4 +4,5 @@ data/ch.adorsaz.LeBonMot.gschema.xml
 src/le_bon_mot-window.ui
 src/main.c
 src/le_bon_mot-window.c
+src/le_bon_mot-engine.c
 

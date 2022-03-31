@@ -16,7 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "gtk/gtkcssprovider.h"
+#include <gtk/gtkcssprovider.h>
+#include <glib/gi18n.h>
 #include "le_bon_mot-config.h"
 #include "le_bon_mot-window.h"
 #include "le_bon_mot-engine.h"
@@ -176,8 +177,8 @@ static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
   le_bon_mot_window_display_alphabet(self);
   LeBonMotEngineState state = le_bon_mot_engine_get_game_state(self->engine);
   if (state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
-      AdwToast *toast = adw_toast_new("Congratulation you won !");
-      adw_toast_set_button_label(toast, "New game");
+      AdwToast *toast = adw_toast_new(_("Congratulation you won!"));
+      adw_toast_set_button_label(toast, _("New game"));
       adw_toast_set_action_name(toast, "game.new");
       if (state == LE_BON_MOT_ENGINE_STATE_LOST) {
         GString *word = le_bon_mot_engine_get_word(self->engine);
@@ -185,7 +186,7 @@ static gboolean le_bon_mot_window_terminate_validation (gpointer user_data) {
         if (!title) {
           g_error("Unable to retrieve word from engine.");
         }
-        g_string_printf(title, "Game Over ! The word was: %s.", word->str);
+        g_string_printf(title, _("Game Over! The word was: %s."), word->str);
         adw_toast_set_title(toast, title->str);
         g_string_free(title, TRUE);
       }

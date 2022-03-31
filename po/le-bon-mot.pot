@@ -1,0 +1,59 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the le-bon-mot package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: le-bon-mot\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-03-31 22:29+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: data/ch.adorsaz.LeBonMot.desktop.in:3
+msgid "le-bon-mot"
+msgstr ""
+
+#: data/ch.adorsaz.LeBonMot.appdata.xml.in:7
+msgid "Guess what the good word is."
+msgstr ""
+
+#: src/le_bon_mot-window.ui:60
+msgid "_Preferences"
+msgstr ""
+
+#: src/le_bon_mot-window.ui:64
+msgid "_Keyboard Shortcuts"
+msgstr ""
+
+#: src/le_bon_mot-window.ui:68
+msgid "_About Le Bon Mot"
+msgstr ""
+
+#: src/le_bon_mot-window.c:185
+msgid "Congratulation you won!"
+msgstr ""
+
+#: src/le_bon_mot-window.c:186
+msgid "New game"
+msgstr ""
+
+#: src/le_bon_mot-window.c:194
+#, c-format
+msgid "Game Over! The word was: %s."
+msgstr ""
+
+#: src/le_bon_mot-engine.c:496
+msgid "You must fill all letters."
+msgstr ""
+
+#: src/le_bon_mot-engine.c:529
+msgid "This word doesn't exist in our dictionary."
+msgstr ""

@@ -1,0 +1,59 @@
+# French translations for le-bon-mot package.
+# Copyright (C) 2022 THE le-bon-mot'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the le-bon-mot package.
+# Automatically generated, 2022.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: le-bon-mot\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-03-31 22:29+0200\n"
+"PO-Revision-Date: 2022-03-31 22:05+0200\n"
+"Last-Translator: Adrien Dorsaz <adrien@adorsaz.ch>\n"
+"Language-Team: none\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: data/ch.adorsaz.LeBonMot.desktop.in:3
+msgid "le-bon-mot"
+msgstr "Le Bon Mot"
+
+#: data/ch.adorsaz.LeBonMot.appdata.xml.in:7
+msgid "Guess what the good word is."
+msgstr "Devinez quel est le bon mot."
+
+#: src/le_bon_mot-window.ui:60
+msgid "_Preferences"
+msgstr "_Préférences"
+
+#: src/le_bon_mot-window.ui:64
+msgid "_Keyboard Shortcuts"
+msgstr "_Raccourcis claviers"
+
+#: src/le_bon_mot-window.ui:68
+msgid "_About Le Bon Mot"
+msgstr "_A propos Le Bon Mot"
+
+#: src/le_bon_mot-window.c:185
+msgid "Congratulation you won!"
+msgstr "Bravo, vous avez gagné !"
+
+#: src/le_bon_mot-window.c:186
+msgid "New game"
+msgstr "Nouvelle partie"
+
+#: src/le_bon_mot-window.c:194
+#, c-format
+msgid "Game Over! The word was: %s."
+msgstr "Perdu ! Le mot été: %s."
+
+#: src/le_bon_mot-engine.c:496
+msgid "You must fill all letters."
+msgstr "Vous devez remplir toutes les lettres."
+
+#: src/le_bon_mot-engine.c:529
+msgid "This word doesn't exist in our dictionary."
+msgstr "Ce mot n'existe pas dans notre dictionnaire."

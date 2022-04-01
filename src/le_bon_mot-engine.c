@@ -533,7 +533,6 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   // Reset alphabet found
   for (guint i = 0; i < self->alphabet->len; i += 1) {
     LeBonMotLetterPrivate *alphabet = g_ptr_array_index(self->alphabet, i);
-    alphabet->state = LE_BON_MOT_LETTER_UNKOWN;
     alphabet->found = 0;
   }
 

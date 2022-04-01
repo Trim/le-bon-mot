@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: le-bon-mot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-31 22:29+0200\n"
+"POT-Creation-Date: 2022-04-01 21:16+0200\n"
 "PO-Revision-Date: 2022-03-31 22:05+0200\n"
 "Last-Translator: Adrien Dorsaz <adrien@adorsaz.ch>\n"
 "Language-Team: none\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: data/ch.adorsaz.LeBonMot.desktop.in:3
-msgid "le-bon-mot"
+msgid "Le Bon Mot"
 msgstr "Le Bon Mot"
 
 #: data/ch.adorsaz.LeBonMot.appdata.xml.in:7
@@ -35,20 +35,20 @@ msgstr "_Raccourcis claviers"
 
 #: src/le_bon_mot-window.ui:68
 msgid "_About Le Bon Mot"
-msgstr "_A propos Le Bon Mot"
+msgstr "_À propos Le Bon Mot"
 
-#: src/le_bon_mot-window.c:185
+#: src/le_bon_mot-window.c:180
 msgid "Congratulation you won!"
-msgstr "Bravo, vous avez gagné !"
+msgstr "Bravo, vous avez gagné !"
 
-#: src/le_bon_mot-window.c:186
+#: src/le_bon_mot-window.c:181
 msgid "New game"
 msgstr "Nouvelle partie"
 
-#: src/le_bon_mot-window.c:194
+#: src/le_bon_mot-window.c:189
 #, c-format
 msgid "Game Over! The word was: %s."
-msgstr "Perdu ! Le mot été: %s."
+msgstr "Perdu ! Le mot était : %s."
 
 #: src/le_bon_mot-engine.c:496
 msgid "You must fill all letters."

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: le-bon-mot\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-03-31 22:29+0200\n"
+"POT-Creation-Date: 2022-04-01 21:16+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 #: data/ch.adorsaz.LeBonMot.desktop.in:3
-msgid "le-bon-mot"
+msgid "Le Bon Mot"
 msgstr ""
 
 #: data/ch.adorsaz.LeBonMot.appdata.xml.in:7
@@ -37,15 +37,15 @@ msgstr ""
 msgid "_About Le Bon Mot"
 msgstr ""
 
-#: src/le_bon_mot-window.c:185
+#: src/le_bon_mot-window.c:180
 msgid "Congratulation you won!"
 msgstr ""
 
-#: src/le_bon_mot-window.c:186
+#: src/le_bon_mot-window.c:181
 msgid "New game"
 msgstr ""
 
-#: src/le_bon_mot-window.c:194
+#: src/le_bon_mot-window.c:189
 #, c-format
 msgid "Game Over! The word was: %s."
 msgstr ""

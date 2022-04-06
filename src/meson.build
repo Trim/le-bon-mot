@@ -1,3 +1,5 @@
+gnome = import('gnome')
+
 #
 # Shared library
 #
@@ -18,15 +20,35 @@ liblebonmot = shared_library(
   install: true,
 )
 
+gir_args = [
+  '--quiet',
+  '--warn-all',
+]
+
+liblebonmot_gir = gnome.generate_gir(
+  liblebonmot,
+  sources: ['le_bon_mot.h', 'le_bon_mot-engine.h'] + lib_le_bon_mot_sources,
+  namespace: 'LeBonMot',
+  nsversion: '1.0',
+  identifier_prefix: 'LeBonMot',
+  symbol_prefix: 'le_bon_mot',
+  export_packages: 'le_bon_mot',
+  includes: [ 'GObject-2.0', 'Gio-2.0', ],
+  header: 'le_bon_mot.h',
+  install: true,
+  extra_args: gir_args,
+  fatal_warnings: true,
+)
+
+#
+# GTK application
+#
+
 le_bon_mot_sources = [
   'main.c',
   'le_bon_mot-application.c',
   'le_bon_mot-window.c',
   ]
-
-#
-# GTK application
-#
 
 le_bon_mot_deps = [
   dependency('gtk4'),
@@ -34,8 +56,6 @@ le_bon_mot_deps = [
   dependency('icu-i18n'),
   dependency('libadwaita-1'),
 ]
-
-gnome = import('gnome')
 
 le_bon_mot_sources += gnome.compile_resources('le_bon_mot-resources',
   'le_bon_mot.gresource.xml',

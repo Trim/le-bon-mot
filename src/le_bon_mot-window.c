@@ -99,7 +99,7 @@ le_bon_mot_window_init (LeBonMotWindow *self)
   // CSS style
   GdkDisplay *display = gtk_widget_get_display(GTK_WIDGET (self));
   self->css_provider = gtk_css_provider_new();
-  gtk_css_provider_load_from_resource(self->css_provider, "/ch/adorsaz/LeBonMot/le_bon_mot-window.css");  
+  gtk_css_provider_load_from_resource(self->css_provider, "/ch/adorsaz/LeBonMot/le_bon_mot-window.css");
   gtk_style_context_add_provider_for_display(display, GTK_STYLE_PROVIDER (self->css_provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
 
   // Engine
@@ -305,7 +305,7 @@ le_bon_mot_window_on_key_released (
   {
     return;
   }
-  
+
   const char *keyname = gdk_keyval_name(keyval);
   // Window grabs focus on any recognized input to avoid propagate keyboard
   // event to other widgets (like the main menu button)
@@ -314,7 +314,7 @@ le_bon_mot_window_on_key_released (
         keyname,
         G_REGEX_CASELESS,
         0)) {
-    le_bon_mot_engine_add_letter(window->engine, keyname);
+    le_bon_mot_engine_add_letter(window->engine, keyname[0]);
     le_bon_mot_window_display_board(window, FALSE, 0);
     gtk_widget_grab_focus(widget);
   } else if (strcmp(keyname, "BackSpace") == 0) {

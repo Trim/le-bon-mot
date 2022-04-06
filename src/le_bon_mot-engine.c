@@ -119,7 +119,7 @@ le_bon_mot_engine_class_init(LeBonMotEngineClass *klass) {
   g_object_class->finalize = le_bon_mot_engine_finalize;
 
   // Setup class members
-  
+
   // Unicode collator give more tools to create dictionary
   UErrorCode status = U_ZERO_ERROR;
   klass->collator = ucol_open(LE_BON_MOT_ENGINE_COLLATION, &status);
@@ -140,7 +140,7 @@ static void
 le_bon_mot_engine_init(LeBonMotEngine *self) {
   le_bon_mot_engine_word_init(self);
   self->alphabet = le_bon_mot_engine_alphabet_init(self->word);
-  self->board = le_bon_mot_engine_board_init(self->word); 
+  self->board = le_bon_mot_engine_board_init(self->word);
   self->current_row = 0;
   self->state = LE_BON_MOT_ENGINE_STATE_CONTINUE;
 }
@@ -404,42 +404,64 @@ static gpointer le_bon_mot_engine_board_copy_row (gconstpointer src, G_GNUC_UNUS
   return g_ptr_array_copy((GPtrArray *) src, le_bon_mot_engine_board_copy_letter, NULL);
 }
 
+/**
+ * le_bon_mot_engine_get_board_state:
+ *
+ * Returns: (element-type GPtrArray(LeBonMotLetter)) (transfer full): the current game board state inside a matrix of GPtrArray
+ * (rows and columns) of LeBonMotLetter
+ */
 GPtrArray* le_bon_mot_engine_get_board_state(LeBonMotEngine* self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), NULL);
 
   return g_ptr_array_copy(self->board, le_bon_mot_engine_board_copy_row, NULL);
 }
 
+/**
+ * le_bon_mot_engine_get_alphabet_state:
+ *
+ * Returns: (type GPtrArray(LeBonMotLetter)) (transfer full): the current alphabet state for this engine
+ */
 GPtrArray* le_bon_mot_engine_get_alphabet_state (LeBonMotEngine *self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), NULL);
 
   return g_ptr_array_copy(self->alphabet, le_bon_mot_engine_board_copy_letter, NULL);
 }
 
-void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *newLetter)
+/**
+ * le_bon_mot_engine_add_letter:
+ * @letter: A letter to add. The letter must be available in the alphabet.
+ *
+ * Action to call when player wants to add a new letter on the current row.
+ */
+void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char letter)
 {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
 
   if (self->current_row >= LE_BON_MOT_ENGINE_ROWS || self->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
     return;
   }
-  
+
   GPtrArray* row = g_ptr_array_index(self->board, self->current_row);
 
   for (guint col = 0; col < row->len; col += 1) {
-    LeBonMotLetter *letter = g_ptr_array_index(row, col);
-    if (letter->letter == LE_BON_MOT_ENGINE_NULL_LETTER) {
-      // Ignore input if user write the first letter on second position
-      if (col == 1 && newLetter[0] == self->word->str[0]) {
+    LeBonMotLetter *rowLetter = g_ptr_array_index(row, col);
+    if (rowLetter->letter == LE_BON_MOT_ENGINE_NULL_LETTER) {
+      // Ignore input if player write the first letter on second position
+      if (col == 1 && letter == self->word->str[0]) {
         break;
       }
-      letter->letter = newLetter[0];
-      letter->state = LE_BON_MOT_LETTER_UNKOWN;
+      rowLetter->letter = letter;
+      rowLetter->state = LE_BON_MOT_LETTER_UNKOWN;
       break;
     }
   }
 }
 
+/**
+ * le_bon_mot_engine_remove_letter:
+ *
+ * Action to call when player wants to remove a letter on the current row.
+ */
 void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
 {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
@@ -447,7 +469,7 @@ void le_bon_mot_engine_remove_letter (LeBonMotEngine *self)
   if (self->current_row >= LE_BON_MOT_ENGINE_ROWS  || self->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
     return;
   }
-  
+
   GPtrArray* row = g_ptr_array_index(self->board, self->current_row);
 
   for (guint col = row->len - 1; col <= row->len; col -= 1) {
@@ -470,6 +492,15 @@ le_bon_mot_engine_compare_letter_private_with_letter (
   return first->letter == second->letter;
 }
 
+/**
+ * le_bon_mot_engine_validate:
+ *
+ * Action to call when a player wants to validate the word on the current row.
+ *
+ * This function can return `LeBonMotEngineError` if the word was invalid.
+ *
+ * If the word was valid, it updates states of the game, alphabet and board.
+ */
 void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   g_return_if_fail(LE_BON_MOT_IS_ENGINE(self));
   g_return_if_fail (error == NULL || *error == NULL);
@@ -478,7 +509,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
 
   GPtrArray *row = g_ptr_array_index(self->board, self->current_row);
   GString *word = g_string_new(NULL);
- 
+
   if (self->current_row >= LE_BON_MOT_ENGINE_ROWS  || self->state != LE_BON_MOT_ENGINE_STATE_CONTINUE) {
     return;
   }
@@ -499,7 +530,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 
   // Check if the given word exists in dictionary
- 
+
   // Compute u_word collapse key
   UChar u_word_buffer[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
   unsigned char key_buffer[LE_BON_MOT_ENGINE_UCHAR_BUFFER_SIZE];
@@ -537,7 +568,7 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 
   // Validate state for each letter on current row
-  
+
   // First pass find all well placed letters
   guint well_placed = 0;
   for (guint col = 0; col < row->len; col += 1) {
@@ -609,16 +640,31 @@ void le_bon_mot_engine_validate(LeBonMotEngine *self, GError **error) {
   }
 }
 
+/**
+ * le_bon_mot_engine_get_current_row:
+ *
+ * Return value: the 0-based row identifier currently played.
+ */
 guint le_bon_mot_engine_get_current_row (LeBonMotEngine *self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), -1);
   return self->current_row;
 }
 
+/**
+ * le_bon_mot_engine_get_game_state:
+ *
+ * Return value: The state of the current game represented by `LeBonMotEngineState`.
+ */
 LeBonMotEngineState le_bon_mot_engine_get_game_state(LeBonMotEngine *self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), -1);
   return self->state;
 }
 
+/**
+ * le_bon_mot_engine_get_word:
+ *
+ * Returns: (transfer full): The word the player should find by itself.
+ */
 GString *le_bon_mot_engine_get_word(LeBonMotEngine *self) {
   g_return_val_if_fail(LE_BON_MOT_IS_ENGINE(self), NULL);
   return g_string_new(self->dictionary_word->str);

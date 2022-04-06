@@ -27,6 +27,11 @@ G_BEGIN_DECLS
  * Public structure
  * */
 
+/**
+ * LeBonMotLetterState:
+ *
+ * State of a letter inside the engine
+ */
 typedef enum {
   LE_BON_MOT_LETTER_UNKOWN,
   LE_BON_MOT_LETTER_NOT_PRESENT,
@@ -34,21 +39,32 @@ typedef enum {
   LE_BON_MOT_LETTER_WELL_PLACED,
 } LeBonMotLetterState;
 
+/**
+ * LeBonMotEngineState:
+ *
+ * State of the game linked to this engine
+ */
 typedef enum {
   LE_BON_MOT_ENGINE_STATE_CONTINUE,
   LE_BON_MOT_ENGINE_STATE_LOST,
   LE_BON_MOT_ENGINE_STATE_WON,
 } LeBonMotEngineState;
 
+/**
+ * LeBonMotLetter:
+ *
+ * Structure containing a letter symbol and its state
+ */
 typedef struct {
   gchar letter;
   LeBonMotLetterState state;
 } LeBonMotLetter;
 
-/*
- * Errors
- * */
-
+/**
+ * LeBonMotEngineError:
+ *
+ * These errors occur when user try to validate a line.
+ */
 typedef enum {
   LE_BON_MOT_ENGINE_ERROR_LINE_INCOMPLETE,
   LE_BON_MOT_ENGINE_ERROR_WORD_UNKOWN,
@@ -66,7 +82,7 @@ typedef enum {
  * This work is normally done by G_DECLARE_FINAL_TYPE macro
  * We cannot use this macro directly, because we need to add class members
  * */
-GType le_bon_mot_engine_get_type(void);
+GType le_bon_mot_engine_get_type();
 
 G_GNUC_BEGIN_IGNORE_DEPRECATIONS
 
@@ -111,17 +127,12 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 /*
  * Public method definitions.
  * */
-LeBonMotEngine *le_bon_mot_engine_new(void);
 
-// Return the current game board state inside a matrix of GPtrArray
-// (rows and columns) of LeBonMotLetter
 GPtrArray* le_bon_mot_engine_get_board_state (LeBonMotEngine *self);
 
-// Return the current game alphabet state inside a GPtrArray
-// of LeBonMotLetter
 GPtrArray* le_bon_mot_engine_get_alphabet_state (LeBonMotEngine *self);
 
-void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char *letter);
+void le_bon_mot_engine_add_letter (LeBonMotEngine *self, const char letter);
 
 void le_bon_mot_engine_remove_letter (LeBonMotEngine *self);
 

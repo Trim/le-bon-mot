@@ -4,7 +4,7 @@
       "adapter": "vscode-cpptools",
       "configuration": {
         "request": "launch",
-        "program": "${workspaceRoot}/build/src/le-bon-mot",
+        "program": "${workspaceRoot}/build/src/muttum",
         "args": [],
         "environment": [],
         "externalConsole": true,

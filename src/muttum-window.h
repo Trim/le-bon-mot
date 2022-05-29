@@ -1,4 +1,4 @@
-/* le_bon_mot.h
+/* muttum-window.h
  *
  * Copyright 2022 Adrien Dorsaz
  *
@@ -18,4 +18,13 @@
 
 #pragma once
 
-#include <le_bon_mot-engine.h>
+#include <gtk/gtk.h>
+#include <adwaita.h>
+
+G_BEGIN_DECLS
+
+#define MUTTUM_TYPE_WINDOW (muttum_window_get_type())
+
+G_DECLARE_FINAL_TYPE (MuttumWindow, muttum_window, MUTTUM, WINDOW, AdwApplicationWindow)
+
+G_END_DECLS

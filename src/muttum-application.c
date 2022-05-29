@@ -1,4 +1,4 @@
-/* le_bon_mot-application.c
+/* muttum-application.c
  *
  * Copyright 2022 Adrien Dorsaz
  *
@@ -16,36 +16,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "le_bon_mot-application.h"
-#include "le_bon_mot-window.h"
+#include "muttum-application.h"
+#include "muttum-window.h"
 
-struct _LeBonMotApplication
+struct _MuttumApplication
 {
   GtkApplication parent_instance;
 };
 
-G_DEFINE_TYPE (LeBonMotApplication, le_bon_mot_application, ADW_TYPE_APPLICATION)
+G_DEFINE_TYPE (MuttumApplication, muttum_application, ADW_TYPE_APPLICATION)
 
-LeBonMotApplication *
-le_bon_mot_application_new (gchar *application_id,
+MuttumApplication *
+muttum_application_new (gchar *application_id,
                             GApplicationFlags  flags)
 {
-  return g_object_new (LE_BON_MOT_TYPE_APPLICATION,
+  return g_object_new (MUTTUM_TYPE_APPLICATION,
                        "application-id", application_id,
                        "flags", flags,
                        NULL);
 }
 
 static void
-le_bon_mot_application_finalize (GObject *object)
+muttum_application_finalize (GObject *object)
 {
-  LE_BON_MOT_IS_APPLICATION (object);
+  MUTTUM_IS_APPLICATION (object);
 
-  G_OBJECT_CLASS (le_bon_mot_application_parent_class)->finalize (object);
+  G_OBJECT_CLASS (muttum_application_parent_class)->finalize (object);
 }
 
 static void
-le_bon_mot_application_activate (GApplication *app)
+muttum_application_activate (GApplication *app)
 {
   GtkWindow *window;
 
@@ -58,7 +58,7 @@ le_bon_mot_application_activate (GApplication *app)
   /* Get the current window or create one if necessary. */
   window = gtk_application_get_active_window (GTK_APPLICATION (app));
   if (window == NULL)
-    window = g_object_new (LE_BON_MOT_TYPE_WINDOW,
+    window = g_object_new (MUTTUM_TYPE_WINDOW,
                            "application", app,
                            NULL);
 
@@ -68,12 +68,12 @@ le_bon_mot_application_activate (GApplication *app)
 
 
 static void
-le_bon_mot_application_class_init (LeBonMotApplicationClass *klass)
+muttum_application_class_init (MuttumApplicationClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GApplicationClass *app_class = G_APPLICATION_CLASS (klass);
 
-  object_class->finalize = le_bon_mot_application_finalize;
+  object_class->finalize = muttum_application_finalize;
 
   /*
    * We connect to the activate callback to create a window when the application
@@ -81,24 +81,24 @@ le_bon_mot_application_class_init (LeBonMotApplicationClass *klass)
    * tries to launch a "second instance" of the application. When they try
    * to do that, we'll just present any existing window.
    */
-  app_class->activate = le_bon_mot_application_activate;
+  app_class->activate = muttum_application_activate;
 }
 
 static void
-le_bon_mot_application_show_about (G_GNUC_UNUSED GSimpleAction *action,
+muttum_application_show_about (G_GNUC_UNUSED GSimpleAction *action,
                                    G_GNUC_UNUSED GVariant      *parameter,
                                    gpointer       user_data)
 {
-  LeBonMotApplication *self = LE_BON_MOT_APPLICATION (user_data);
+  MuttumApplication *self = MUTTUM_APPLICATION (user_data);
   GtkWindow *window = NULL;
   const gchar *authors[] = {"Adrien Dorsaz", NULL};
 
-  g_return_if_fail (LE_BON_MOT_IS_APPLICATION (self));
+  g_return_if_fail (MUTTUM_IS_APPLICATION (self));
 
   window = gtk_application_get_active_window (GTK_APPLICATION (self));
 
   gtk_show_about_dialog (window,
-                         "program-name", "le-bon-mot",
+                         "program-name", "muttum",
                          "authors", authors,
                          "version", "0.1.0",
                          NULL);
@@ -106,14 +106,14 @@ le_bon_mot_application_show_about (G_GNUC_UNUSED GSimpleAction *action,
 
 
 static void
-le_bon_mot_application_init (LeBonMotApplication *self)
+muttum_application_init (MuttumApplication *self)
 {
   GSimpleAction *quit_action = g_simple_action_new ("quit", NULL);
   g_signal_connect_swapped (quit_action, "activate", G_CALLBACK (g_application_quit), self);
   g_action_map_add_action (G_ACTION_MAP (self), G_ACTION (quit_action));
 
   GSimpleAction *about_action = g_simple_action_new ("about", NULL);
-  g_signal_connect (about_action, "activate", G_CALLBACK (le_bon_mot_application_show_about), self);
+  g_signal_connect (about_action, "activate", G_CALLBACK (muttum_application_show_about), self);
   g_action_map_add_action (G_ACTION_MAP (self), G_ACTION (about_action));
 
   const char *accels[] = {"<primary>q", NULL};

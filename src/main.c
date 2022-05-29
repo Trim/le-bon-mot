@@ -18,14 +18,14 @@
 
 #include <glib/gi18n.h>
 
-#include "le_bon_mot-config.h"
-#include "le_bon_mot-application.h"
+#include "muttum-config.h"
+#include "muttum-application.h"
 
 int
 main (int   argc,
       char *argv[])
 {
-	g_autoptr(LeBonMotApplication) app = NULL;
+	g_autoptr(MuttumApplication) app = NULL;
 	int ret;
 
 	/* Set up gettext translations */
@@ -38,7 +38,7 @@ main (int   argc,
 	 * application windows, integration with the window manager/compositor, and
 	 * desktop features such as file opening and single-instance applications.
 	 */
-	app = le_bon_mot_application_new ("ch.adorsaz.LeBonMot", G_APPLICATION_FLAGS_NONE);
+	app = muttum_application_new ("org.muttum.Muttum", G_APPLICATION_FLAGS_NONE);
 
 	/*
 	 * Run the application. This function will block until the application

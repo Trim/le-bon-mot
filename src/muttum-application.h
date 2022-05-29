@@ -1,4 +1,4 @@
-/* le_bon_mot-application.h
+/* muttum-application.h
  *
  * Copyright 2022 Adrien Dorsaz
  *
@@ -23,11 +23,11 @@
 
 G_BEGIN_DECLS
 
-#define LE_BON_MOT_TYPE_APPLICATION (le_bon_mot_application_get_type())
+#define MUTTUM_TYPE_APPLICATION (muttum_application_get_type())
 
-G_DECLARE_FINAL_TYPE (LeBonMotApplication, le_bon_mot_application, LE_BON_MOT, APPLICATION, AdwApplication)
+G_DECLARE_FINAL_TYPE (MuttumApplication, muttum_application, MUTTUM, APPLICATION, AdwApplication)
 
-LeBonMotApplication *le_bon_mot_application_new (gchar *application_id,
+MuttumApplication *muttum_application_new (gchar *application_id,
                                                  GApplicationFlags  flags);
 
 G_END_DECLS

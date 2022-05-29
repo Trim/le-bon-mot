@@ -4,19 +4,19 @@ gnome = import('gnome')
 # Shared library
 #
 
-lib_le_bon_mot_sources = [
-  'le_bon_mot-engine.c',
+lib_muttum_sources = [
+  'muttum-engine.c',
   ]
 
-lib_le_bon_mot_deps = [
+lib_muttum_deps = [
   dependency('gio-2.0'),
   dependency('icu-i18n'),
 ]
 
-liblebonmot = shared_library(
-  'lebonmot',
-  lib_le_bon_mot_sources,
-  dependencies: lib_le_bon_mot_deps,
+libmuttum = shared_library(
+  'muttum',
+  lib_muttum_sources,
+  dependencies: lib_muttum_deps,
   install: true,
 )
 
@@ -25,16 +25,16 @@ gir_args = [
   '--warn-all',
 ]
 
-liblebonmot_gir = gnome.generate_gir(
-  liblebonmot,
-  sources: ['le_bon_mot.h', 'le_bon_mot-engine.h'] + lib_le_bon_mot_sources,
-  namespace: 'LeBonMot',
+libmuttum_gir = gnome.generate_gir(
+  libmuttum,
+  sources: ['muttum.h', 'muttum-engine.h'] + lib_muttum_sources,
+  namespace: 'Muttum',
   nsversion: '1.0',
-  identifier_prefix: 'LeBonMot',
-  symbol_prefix: 'le_bon_mot',
-  export_packages: 'le_bon_mot',
+  identifier_prefix: 'Muttum',
+  symbol_prefix: 'muttum',
+  export_packages: 'muttum',
   includes: [ 'GObject-2.0', 'Gio-2.0', ],
-  header: 'le_bon_mot.h',
+  header: 'muttum.h',
   install: true,
   extra_args: gir_args,
   fatal_warnings: true,
@@ -44,26 +44,26 @@ liblebonmot_gir = gnome.generate_gir(
 # GTK application
 #
 
-le_bon_mot_sources = [
+muttum_sources = [
   'main.c',
-  'le_bon_mot-application.c',
-  'le_bon_mot-window.c',
+  'muttum-application.c',
+  'muttum-window.c',
   ]
 
-le_bon_mot_deps = [
+muttum_deps = [
   dependency('gtk4'),
   dependency('icu-uc'),
   dependency('icu-i18n'),
   dependency('libadwaita-1'),
 ]
 
-le_bon_mot_sources += gnome.compile_resources('le_bon_mot-resources',
-  'le_bon_mot.gresource.xml',
-  c_name: 'le_bon_mot'
+muttum_sources += gnome.compile_resources('muttum-resources',
+  'muttum.gresource.xml',
+  c_name: 'muttum'
 )
 
-executable('le-bon-mot', le_bon_mot_sources,
-  dependencies: le_bon_mot_deps,
-  link_with: liblebonmot,
+executable('muttum', muttum_sources,
+  dependencies: muttum_deps,
+  link_with: libmuttum,
   install: true,
 )

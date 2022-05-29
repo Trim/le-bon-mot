@@ -1,4 +1,4 @@
-application_id = 'ch.adorsaz.LeBonMot'
+application_id = 'org.muttum.Muttum'
 
 scalable_dir = join_paths('hicolor', 'scalable', 'apps')
 install_data(

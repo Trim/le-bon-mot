@@ -1,9 +1,9 @@
 {
-  "app-id": "ch.adorsaz.LeBonMot",
+  "app-id": "org.muttum.Muttum",
   "runtime": "org.gnome.Platform",
   "runtime-version": "master",
   "sdk": "org.gnome.Sdk",
-  "command": "le-bon-mot",
+  "command": "muttum",
   "finish-args": [
     "--socket=fallback-x11",
     "--device=dri",
@@ -22,13 +22,13 @@
   ],
   "modules": [
     {
-      "name": "le-bon-mot",
+      "name": "muttum",
       "builddir": true,
       "buildsystem": "meson",
       "sources": [
         {
           "type": "git",
-          "url": "https://projects.adorsaz.ch/adrien/le-bon-mot.git",
+          "url": "https://projects.adorsaz.ch/adrien/muttum.git",
           "branch": "main"
         }
       ],

@@ -1,1 +1,1 @@
-i18n.gettext('le-bon-mot', preset: 'glib')
+i18n.gettext('muttum', preset: 'glib')

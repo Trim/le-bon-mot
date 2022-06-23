@@ -28,7 +28,7 @@
       "sources": [
         {
           "type": "git",
-          "url": "https://projects.adorsaz.ch/adrien/muttum.git",
+          "url": "https://projects.adorsaz.ch/muttum/muttum.git",
           "branch": "main"
         }
       ],

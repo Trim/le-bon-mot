@@ -1,2 +1,15 @@
-option('french_dictionary_path_uri', type : 'string', value : 'file:///usr/share/dict/french',
-       description : 'File path URI of the French dictionary (one word by line)')
+option('french_dictionary_path_uri',
+       type: 'string',
+       value: 'file:///usr/share/dict/french',
+       description: 'File path URI of the French dictionary (one word by line)')
+
+option('muttum_doc',
+       type: 'boolean',
+       value: 'false',
+       description: 'Build API reference and documentation')
+
+option('introspection',
+       type: 'boolean',
+       value: 'false',
+       description: 'Build introspection data')
+

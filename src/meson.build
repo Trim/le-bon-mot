@@ -20,25 +20,30 @@ libmuttum = shared_library(
   install: true,
 )
 
-gir_args = [
-  '--quiet',
-  '--warn-all',
-]
+gir = find_program('g-ir-scanner', required : get_option('introspection'))
+build_gir = gir.found() and (not meson.is_cross_build() or get_option('introspection').enabled())
 
-libmuttum_gir = gnome.generate_gir(
-  libmuttum,
-  sources: ['muttum.h', 'muttum-engine.h'] + lib_muttum_sources,
-  namespace: 'Muttum',
-  nsversion: '1.0',
-  identifier_prefix: 'Muttum',
-  symbol_prefix: 'muttum',
-  export_packages: 'muttum',
-  includes: [ 'GObject-2.0', 'Gio-2.0', ],
-  header: 'muttum.h',
-  install: true,
-  extra_args: gir_args,
-  fatal_warnings: true,
-)
+if build_gir
+  gir_args = [
+    '--quiet',
+    '--warn-all',
+  ]
+
+  libmuttum_gir = gnome.generate_gir(
+    libmuttum,
+    sources: ['muttum.h', 'muttum-engine.h'] + lib_muttum_sources,
+    namespace: 'Muttum',
+    nsversion: '1.0',
+    identifier_prefix: 'Muttum',
+    symbol_prefix: 'muttum',
+    export_packages: 'muttum',
+    includes: [ 'GObject-2.0', 'Gio-2.0', ],
+    header: 'muttum.h',
+    install: true,
+    extra_args: gir_args,
+    fatal_warnings: true,
+  )
+endif
 
 #
 # GTK application

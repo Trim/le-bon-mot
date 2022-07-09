@@ -26,14 +26,14 @@
 #include <glib/gi18n.h>
 
 #include "muttum-engine.h"
+#include "muttum-board-private.h"
 
 // Default French dictionary path uri if not defined
 #ifndef FRENCH_DICTIONARY_PATH_URI
   #define FRENCH_DICTIONARY_PATH_URI "file:///use/share/dict/french"
 #endif
 
-const guint MUTTUM_ENGINE_ROWS = 6;
-const gchar MUTTUM_ENGINE_NULL_LETTER = '.';
+const guint MUTTUM_ENGINE_N_ATTEMPTS = 6;
 const guint MUTTUM_ENGINE_WORD_LENGTH_MIN = 5;
 const guint MUTTUM_ENGINE_WORD_LENGTH_MAX = 8;
 const guint MUTTUM_ENGINE_UCHAR_BUFFER_SIZE = 100;
@@ -45,7 +45,6 @@ const gchar *MUTTUM_ENGINE_DICTIONARY_FILE_URI = FRENCH_DICTIONARY_PATH_URI;
 static GTree *muttum_engine_class_dictionary_init(UCollator *collator);
 static void muttum_engine_word_init(MuttumEngine* self);
 static GPtrArray *muttum_engine_alphabet_init(GString *word);
-static GPtrArray *muttum_engine_board_init(GString *word);
 
 G_DEFINE_QUARK(muttum-engine-error-quark, muttum_engine_error);
 
@@ -69,8 +68,8 @@ struct _MuttumEngine
   GString *word;
   GString *dictionary_word;
   GPtrArray *alphabet;
-  GPtrArray *board;
-  guint current_row;
+  MuttumBoard *board;
+  guint current_attempt;
   MuttumEngineState state;
 };
 
@@ -91,9 +90,7 @@ muttum_engine_dispose (GObject *gobject)
   MuttumEngine *self = MUTTUM_ENGINE(gobject);
 
   g_ptr_array_unref(self->alphabet);
-
-  // Board is initialized to cascade unref to rows and free letters
-  g_ptr_array_unref(self->board);
+  g_object_unref(self->board);
 
   G_OBJECT_CLASS (muttum_engine_parent_class)->dispose (gobject);
 }
@@ -140,8 +137,11 @@ static void
 muttum_engine_init(MuttumEngine *self) {
   muttum_engine_word_init(self);
   self->alphabet = muttum_engine_alphabet_init(self->word);
-  self->board = muttum_engine_board_init(self->word);
-  self->current_row = 0;
+  self->board = muttum_board_new(
+      MUTTUM_ENGINE_N_ATTEMPTS,
+      g_utf8_strlen(self->word->str, -1),
+      self->word->str[0]);
+  self->current_attempt = 1;
   self->state = MUTTUM_ENGINE_STATE_CONTINUE;
 }
 
@@ -363,33 +363,6 @@ static GPtrArray *muttum_engine_alphabet_init(GString *word)
   return alphabet;
 }
 
-static void muttum_engine_board_destroy_row(gpointer data) {
-  g_ptr_array_unref(data);
-}
-
-static GPtrArray *muttum_engine_board_init(GString *word) {
-  GPtrArray *board = g_ptr_array_new_full(
-      MUTTUM_ENGINE_ROWS,
-      muttum_engine_board_destroy_row
-  );
-  glong word_length = g_utf8_strlen(word->str, -1);
-  for (guint rowIndex = 0; rowIndex < MUTTUM_ENGINE_ROWS; rowIndex += 1) {
-    GPtrArray *row = g_ptr_array_new_full(word->len, g_free);
-    for (glong columnIndex = 0; columnIndex < word_length; columnIndex += 1) {
-      MuttumLetter *letter = g_new(MuttumLetter, 1);
-      if (rowIndex == 0 && columnIndex == 0) {
-        letter->letter = word->str[0];
-      } else {
-        letter->letter = MUTTUM_ENGINE_NULL_LETTER;
-      }
-      letter->state = MUTTUM_LETTER_UNKOWN;
-      g_ptr_array_add(row, letter);
-    }
-    g_ptr_array_add(board, row);
-  }
-  return board;
-}
-
 static gpointer muttum_engine_board_copy_letter(gconstpointer src, G_GNUC_UNUSED gpointer data)
 {
   MuttumLetter *copy = g_new(MuttumLetter, 1);
@@ -397,11 +370,6 @@ static gpointer muttum_engine_board_copy_letter(gconstpointer src, G_GNUC_UNUSED
   copy->letter = letter->letter;
   copy->state = letter->state;
   return copy;
-}
-
-static gpointer muttum_engine_board_copy_row (gconstpointer src, G_GNUC_UNUSED gpointer data)
-{
-  return g_ptr_array_copy((GPtrArray *) src, muttum_engine_board_copy_letter, NULL);
 }
 
 /**
@@ -413,7 +381,7 @@ static gpointer muttum_engine_board_copy_row (gconstpointer src, G_GNUC_UNUSED g
 GPtrArray* muttum_engine_get_board_state(MuttumEngine* self) {
   g_return_val_if_fail(MUTTUM_IS_ENGINE(self), NULL);
 
-  return g_ptr_array_copy(self->board, muttum_engine_board_copy_row, NULL);
+  return muttum_board_get_data(self->board);
 }
 
 /**
@@ -431,55 +399,33 @@ GPtrArray* muttum_engine_get_alphabet_state (MuttumEngine *self) {
  * muttum_engine_add_letter:
  * @letter: A letter to add. The letter must be available in the alphabet.
  *
- * Action to call when player wants to add a new letter on the current row.
+ * Action to call when player wants to add a new letter on the current attempt.
  */
 void muttum_engine_add_letter (MuttumEngine *self, const char letter)
 {
   g_return_if_fail(MUTTUM_IS_ENGINE(self));
 
-  if (self->current_row >= MUTTUM_ENGINE_ROWS || self->state != MUTTUM_ENGINE_STATE_CONTINUE) {
+  if (self->current_attempt > MUTTUM_ENGINE_N_ATTEMPTS || self->state != MUTTUM_ENGINE_STATE_CONTINUE) {
     return;
   }
 
-  GPtrArray* row = g_ptr_array_index(self->board, self->current_row);
-
-  for (guint col = 0; col < row->len; col += 1) {
-    MuttumLetter *rowLetter = g_ptr_array_index(row, col);
-    if (rowLetter->letter == MUTTUM_ENGINE_NULL_LETTER) {
-      // Ignore input if player write the first letter on second position
-      if (col == 1 && letter == self->word->str[0]) {
-        break;
-      }
-      rowLetter->letter = letter;
-      rowLetter->state = MUTTUM_LETTER_UNKOWN;
-      break;
-    }
-  }
+  muttum_board_add_letter(self->board, self->current_attempt, letter);
 }
 
 /**
  * muttum_engine_remove_letter:
  *
- * Action to call when player wants to remove a letter on the current row.
+ * Action to call when player wants to remove a letter on the current attempt.
  */
 void muttum_engine_remove_letter (MuttumEngine *self)
 {
   g_return_if_fail(MUTTUM_IS_ENGINE(self));
 
-  if (self->current_row >= MUTTUM_ENGINE_ROWS  || self->state != MUTTUM_ENGINE_STATE_CONTINUE) {
+  if (self->current_attempt > MUTTUM_ENGINE_N_ATTEMPTS  || self->state != MUTTUM_ENGINE_STATE_CONTINUE) {
     return;
   }
 
-  GPtrArray* row = g_ptr_array_index(self->board, self->current_row);
-
-  for (guint col = row->len - 1; col <= row->len; col -= 1) {
-    MuttumLetter *letter = g_ptr_array_index(row, col);
-    if (letter->letter != MUTTUM_ENGINE_NULL_LETTER && col != 0) {
-      letter->letter = MUTTUM_ENGINE_NULL_LETTER;
-      letter->state = MUTTUM_LETTER_UNKOWN;
-      break;
-    }
-  }
+  muttum_board_remove_letter(self->board, self->current_attempt);
 }
 
 static gboolean
@@ -495,7 +441,7 @@ muttum_engine_compare_letter_private_with_letter (
 /**
  * muttum_engine_validate:
  *
- * Action to call when a player wants to validate the word on the current row.
+ * Action to call when a player wants to validate the word on the current attempt.
  *
  * This function can return `MuttumEngineError` if the word was invalid.
  *
@@ -507,19 +453,21 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
 
   MuttumEngineClass* klass = MUTTUM_ENGINE_GET_CLASS(self);
 
-  GPtrArray *row = g_ptr_array_index(self->board, self->current_row);
+  GPtrArray *attempt = muttum_board_get_attempt(self->board, self->current_attempt);
+  g_return_if_fail(attempt);
+
   GString *word = g_string_new(NULL);
 
-  if (self->current_row >= MUTTUM_ENGINE_ROWS  || self->state != MUTTUM_ENGINE_STATE_CONTINUE) {
+  if (self->current_attempt > MUTTUM_ENGINE_N_ATTEMPTS  || self->state != MUTTUM_ENGINE_STATE_CONTINUE) {
     return;
   }
 
   // Ensure all letters were given
-  for (guint col = 0; col < row->len; col += 1) {
-    MuttumLetter *letter = g_ptr_array_index(row, col);
+  for (guint letter_index = 0; letter_index < attempt->len; letter_index += 1) {
+    MuttumLetter *letter = g_ptr_array_index(attempt, letter_index);
     g_string_append_c(word, letter->letter);
 
-    if (letter->letter == MUTTUM_ENGINE_NULL_LETTER) {
+    if (letter->letter == MUTTUM_LETTER_NULL) {
       g_string_free(word, TRUE);
       g_set_error_literal(
           error, MUTTUM_ENGINE_ERROR,
@@ -567,12 +515,12 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
     alphabet->found = 0;
   }
 
-  // Validate state for each letter on current row
+  // Validate state for each letter on current attempt
 
   // First pass find all well placed letters
   guint well_placed = 0;
-  for (guint col = 0; col < row->len; col += 1) {
-    MuttumLetter *letter = g_ptr_array_index(row, col);
+  for (guint letter_index = 0; letter_index < attempt->len; letter_index += 1) {
+    MuttumLetter *letter = g_ptr_array_index(attempt, letter_index);
 
     // Alphabet is used to store found letter count
     guint* alphabet_index = g_new(guint, 1);
@@ -584,7 +532,7 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
     }
     g_return_if_fail(alphabet);
 
-    if (self->word->str[col] == letter->letter) {
+    if (self->word->str[letter_index] == letter->letter) {
       letter->state = MUTTUM_LETTER_WELL_PLACED;
       alphabet->state = MUTTUM_LETTER_WELL_PLACED;
       alphabet->found++;
@@ -592,14 +540,14 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
     }
   }
 
-  if (well_placed == row->len) {
+  if (well_placed == attempt->len) {
     self->state = MUTTUM_ENGINE_STATE_WON;
     return;
   }
 
   // Second pass find all letters present but not well placed
-  for (guint col = 0; col < row->len; col += 1) {
-    MuttumLetter *letter = g_ptr_array_index(row, col);
+  for (guint letter_index = 0; letter_index < attempt->len; letter_index += 1) {
+    MuttumLetter *letter = g_ptr_array_index(attempt, letter_index);
 
     // Alphabet is used to store found letter count
     guint* alphabet_index = g_new(guint, 1);
@@ -611,7 +559,7 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
     }
     g_return_if_fail(alphabet);
 
-    if (self->word->str[col] != letter->letter) {
+    if (self->word->str[letter_index] != letter->letter) {
       if (alphabet->found < alphabet->position->len) {
         letter->state = MUTTUM_LETTER_PRESENT;
         if (alphabet->state != MUTTUM_LETTER_WELL_PLACED) {
@@ -627,13 +575,11 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
     }
   }
 
-  // Move to next row
-  self->current_row++;
+  // Move to next attempt
+  self->current_attempt++;
 
-  if (self->current_row < MUTTUM_ENGINE_ROWS) {
-    GPtrArray* nextRow = g_ptr_array_index(self->board, self->current_row);
-    MuttumLetter* firstLetter = g_ptr_array_index(nextRow, 0);
-    firstLetter->letter = self->word->str[0];
+  if (self->current_attempt <= MUTTUM_ENGINE_N_ATTEMPTS) {
+    muttum_board_add_letter(self->board, self->current_attempt, self->word->str[0]);
   } else {
     // Cannot play anymore game is lost
     self->state = MUTTUM_ENGINE_STATE_LOST;
@@ -641,13 +587,13 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
 }
 
 /**
- * muttum_engine_get_current_row:
+ * muttum_engine_get_current_attempt:
  *
- * Return value: the 0-based row identifier currently played.
+ * Return value: the 0-based attempt number currently played.
  */
-guint muttum_engine_get_current_row (MuttumEngine *self) {
+guint muttum_engine_get_current_attempt (MuttumEngine *self) {
   g_return_val_if_fail(MUTTUM_IS_ENGINE(self), -1);
-  return self->current_row;
+  return self->current_attempt;
 }
 
 /**

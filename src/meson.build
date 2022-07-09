@@ -5,10 +5,13 @@ gnome = import('gnome')
 #
 
 lib_muttum_sources = [
+  'muttum-board.c',
   'muttum-engine.c',
   ]
 
 lib_muttum_deps = [
+  dependency('glib-2.0'),
+  dependency('gobject-2.0', version: '>=2.54'),
   dependency('gio-2.0'),
   dependency('icu-i18n'),
 ]
@@ -31,7 +34,7 @@ if build_gir
 
   libmuttum_gir = gnome.generate_gir(
     libmuttum,
-    sources: ['muttum.h', 'muttum-engine.h'] + lib_muttum_sources,
+    sources: ['muttum.h', 'muttum-engine.h', 'muttum-board.h'] + lib_muttum_sources,
     namespace: 'Muttum',
     nsversion: '1.0',
     identifier_prefix: 'Muttum',

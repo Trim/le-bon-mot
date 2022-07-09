@@ -21,23 +21,13 @@
 #include <glib-object.h>
 #include <glib-2.0/glib.h>
 
+#include "muttum-board.h"
+
 G_BEGIN_DECLS
 
 /*
  * Public structure
  * */
-
-/**
- * MuttumLetterState:
- *
- * State of a letter inside the engine
- */
-typedef enum {
-  MUTTUM_LETTER_UNKOWN,
-  MUTTUM_LETTER_NOT_PRESENT,
-  MUTTUM_LETTER_PRESENT,
-  MUTTUM_LETTER_WELL_PLACED,
-} MuttumLetterState;
 
 /**
  * MuttumEngineState:
@@ -49,16 +39,6 @@ typedef enum {
   MUTTUM_ENGINE_STATE_LOST,
   MUTTUM_ENGINE_STATE_WON,
 } MuttumEngineState;
-
-/**
- * MuttumLetter:
- *
- * Structure containing a letter symbol and its state
- */
-typedef struct {
-  gchar letter;
-  MuttumLetterState state;
-} MuttumLetter;
 
 /**
  * MuttumEngineError:
@@ -139,7 +119,7 @@ void muttum_engine_remove_letter (MuttumEngine *self);
 MuttumEngineState muttum_engine_get_game_state (MuttumEngine *self);
 void muttum_engine_validate(MuttumEngine *self, GError **error);
 
-guint muttum_engine_get_current_row (MuttumEngine *self);
+guint muttum_engine_get_current_attempt (MuttumEngine *self);
 
 GString *muttum_engine_get_word(MuttumEngine *self);
 

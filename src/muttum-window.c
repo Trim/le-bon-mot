@@ -209,16 +209,16 @@ muttum_window_display_board (
   GPtrArray* board = muttum_engine_get_board_state(self->engine);
 
   guint longest_delay = 0;
-  for (guint rowIndex = 0; rowIndex < board->len; rowIndex +=1 ) {
-    GPtrArray *row = g_ptr_array_index(board, rowIndex);
-    for (guint columnIndex = 0; columnIndex < row->len; columnIndex += 1) {
-      MuttumLetter *letter = g_ptr_array_index(row, columnIndex);
+  for (guint row_index = 0; row_index < board->len; row_index +=1 ) {
+    GPtrArray *row = g_ptr_array_index(board, row_index);
+    for (guint column_index = 0; column_index < row->len; column_index += 1) {
+      MuttumLetter *letter = g_ptr_array_index(row, column_index);
 
-      GtkWidget* child = gtk_grid_get_child_at(self->game_grid, columnIndex, rowIndex);
+      GtkWidget* child = gtk_grid_get_child_at(self->game_grid, column_index, row_index);
       if (!child) {
         child = gtk_label_new(NULL);
         gtk_widget_add_css_class(child, "card");
-        gtk_grid_attach(self->game_grid, child, columnIndex, rowIndex, 1, 1);
+        gtk_grid_attach(self->game_grid, child, column_index, row_index, 1, 1);
       }
 
       labelData *label_data = g_new(labelData, 1);
@@ -226,14 +226,14 @@ muttum_window_display_board (
       label_data->letter = letter;
 
       if (self->is_validating && apply_delay
-          && (rowIndex == delay_on_row || rowIndex == delay_on_row + 1)) {
-        guint delay = 200 * columnIndex + 200 * row->len * (rowIndex - delay_on_row);
+          && (row_index == delay_on_row || row_index == delay_on_row + 1)) {
+        guint delay = 200 * column_index + 200 * row->len * (row_index - delay_on_row);
         // Delay display of all letters on delay row
-        if (rowIndex == delay_on_row) {
+        if (row_index == delay_on_row) {
           g_timeout_add(delay, muttum_window_set_label_data, label_data);
         } else {
           // On row just after, only the first letter need to be delayed
-          if (columnIndex == 0) {
+          if (column_index == 0) {
             g_timeout_add(delay, muttum_window_set_label_data, label_data);
             longest_delay = delay + 200;
           } else {
@@ -259,15 +259,15 @@ muttum_window_display_alphabet (
 
   GPtrArray* alphabet = muttum_engine_get_alphabet_state(self->engine);
 
-  for (guint alphaIndex = 0; alphaIndex < alphabet->len; alphaIndex +=1 ) {
-    MuttumLetter *letter = g_ptr_array_index(alphabet, alphaIndex);
-    guint rowIndex = alphaIndex / 13;
-    guint columnIndex = alphaIndex % 13;
-    GtkWidget* child = gtk_grid_get_child_at(self->alphabet_grid, columnIndex, rowIndex);
+  for (guint alpha_index = 0; alpha_index < alphabet->len; alpha_index +=1 ) {
+    MuttumLetter *letter = g_ptr_array_index(alphabet, alpha_index);
+    guint row_index = alpha_index / 13;
+    guint column_index = alpha_index % 13;
+    GtkWidget* child = gtk_grid_get_child_at(self->alphabet_grid, column_index, row_index);
     if (!child) {
       child = gtk_label_new(NULL);
       gtk_widget_add_css_class(child, "card");
-      gtk_grid_attach(self->alphabet_grid, child, columnIndex, rowIndex, 1, 1);
+      gtk_grid_attach(self->alphabet_grid, child, column_index, row_index, 1, 1);
     }
 
     labelData *label_data = g_new(labelData, 1);
@@ -322,7 +322,7 @@ muttum_window_on_key_released (
     muttum_window_display_board(window, FALSE, 0);
     gtk_widget_grab_focus(widget);
   } else if (strcmp(keyname, "Return") == 0) {
-    guint delay_on_row = muttum_engine_get_current_row(window->engine);
+    guint current_attempt = muttum_engine_get_current_attempt(window->engine);
     window->is_validating = TRUE;
     GError *error = NULL;
     muttum_engine_validate(window->engine, &error);
@@ -333,7 +333,7 @@ muttum_window_on_key_released (
       adw_toast_overlay_add_toast(window->toast_overlay, toast);
       window->is_validating = FALSE;
     } else {
-      muttum_window_display_board(window, TRUE, delay_on_row);
+      muttum_window_display_board(window, TRUE, current_attempt - 1);
     }
     gtk_widget_grab_focus(widget);
   }

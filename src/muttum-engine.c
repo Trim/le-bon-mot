@@ -26,6 +26,7 @@
 #include <glib/gi18n.h>
 
 #include "muttum-engine.h"
+#include "muttum-attempt-private.h"
 #include "muttum-board-private.h"
 
 // Default French dictionary path uri if not defined
@@ -60,12 +61,17 @@ typedef struct {
   gboolean is_playable;
 } DictionaryWord;
 
-struct _MuttumEngine
-{
+typedef struct {
+  MuttumEngine *engine;
+  guint *n_well_placed_letters;
+} UserDataValidate;
+
+struct _MuttumEngine {
   GObject parent_instance;
 
   // Engine properties
   GString *word;
+  guint n_letters;
   GString *dictionary_word;
   GPtrArray *alphabet;
   MuttumBoard *board;
@@ -136,13 +142,15 @@ muttum_engine_class_init(MuttumEngineClass *klass) {
 static void
 muttum_engine_init(MuttumEngine *self) {
   muttum_engine_word_init(self);
+  self->n_letters = g_utf8_strlen(self->word->str, -1);
   self->alphabet = muttum_engine_alphabet_init(self->word);
-  self->board = muttum_board_new(
-      MUTTUM_ENGINE_N_ATTEMPTS,
-      g_utf8_strlen(self->word->str, -1),
-      self->word->str[0]);
+  self->board = muttum_board_new(MUTTUM_ENGINE_N_ATTEMPTS, self->n_letters);
   self->current_attempt = 1;
   self->state = MUTTUM_ENGINE_STATE_CONTINUE;
+
+  // First letter is mandatory and cannot be changed
+  muttum_board_add_letter(self->board, self->current_attempt,
+                          self->word->str[0]);
 }
 
 static void muttum_engine_dictionary_destroy_value(gpointer data) {
@@ -363,25 +371,16 @@ static GPtrArray *muttum_engine_alphabet_init(GString *word)
   return alphabet;
 }
 
-static gpointer muttum_engine_board_copy_letter(gconstpointer src, G_GNUC_UNUSED gpointer data)
-{
-  MuttumLetter *copy = g_new(MuttumLetter, 1);
-  const MuttumLetter *letter = src;
-  copy->letter = letter->letter;
-  copy->state = letter->state;
-  return copy;
-}
-
 /**
  * muttum_engine_get_board_state:
  *
- * Returns: (element-type GPtrArray(MuttumLetter)) (transfer full): the current game board state inside a matrix of GPtrArray
+ * Returns: (transfer full): the current #MuttumBoard
  * (rows and columns) of MuttumLetter
  */
-GPtrArray* muttum_engine_get_board_state(MuttumEngine* self) {
+MuttumBoard *muttum_engine_get_board_state(MuttumEngine *self) {
   g_return_val_if_fail(MUTTUM_IS_ENGINE(self), NULL);
 
-  return muttum_board_get_data(self->board);
+  return self->board;
 }
 
 /**
@@ -392,7 +391,7 @@ GPtrArray* muttum_engine_get_board_state(MuttumEngine* self) {
 GPtrArray* muttum_engine_get_alphabet_state (MuttumEngine *self) {
   g_return_val_if_fail(MUTTUM_IS_ENGINE(self), NULL);
 
-  return g_ptr_array_copy(self->alphabet, muttum_engine_board_copy_letter, NULL);
+  return g_ptr_array_copy(self->alphabet, muttum_letter_copy, NULL);
 }
 
 /**
@@ -439,6 +438,78 @@ muttum_engine_compare_letter_private_with_letter (
 }
 
 /**
+ * muttum_engine_validate_find_well_placed_letters:
+ *
+ * This is a callback to be used while validating attempt.
+ * This finds all well placed letters and update the alphabet of the
+ *#MuttumEngine.
+ **/
+static void
+muttum_engine_validate_find_well_placed_letters(gpointer data,
+                                                gpointer user_data) {
+  g_return_if_fail(MUTTUM_IS_ENGINE(((UserDataValidate *)user_data)->engine));
+  MuttumEngine *self = ((UserDataValidate *)user_data)->engine;
+  guint *well_placed = ((UserDataValidate *)user_data)->n_well_placed_letters;
+
+  MuttumAttemptLetter *attempt_letter = (MuttumAttemptLetter *)data;
+  MuttumLetter *letter = attempt_letter->letter;
+  guint letter_index = attempt_letter->index;
+
+  // Alphabet is used to store found letter count
+  guint *alphabet_index = g_new(guint, 1);
+  MuttumLetterPrivate *alphabet = NULL;
+  if (g_ptr_array_find_with_equal_func(
+          self->alphabet, letter,
+          muttum_engine_compare_letter_private_with_letter, alphabet_index)) {
+    alphabet = g_ptr_array_index(self->alphabet, *alphabet_index);
+  }
+  g_free(alphabet_index);
+  g_return_if_fail(alphabet);
+
+  if (self->word->str[letter_index] == letter->letter) {
+    letter->state = MUTTUM_LETTER_WELL_PLACED;
+    alphabet->state = MUTTUM_LETTER_WELL_PLACED;
+    alphabet->found++;
+    (*well_placed)++;
+  }
+}
+
+static void muttum_engine_validate_find_present_letters(gpointer data,
+                                                        gpointer user_data) {
+  g_return_if_fail(MUTTUM_IS_ENGINE(user_data));
+  MuttumEngine *self = (MuttumEngine *)user_data;
+
+  MuttumAttemptLetter *attempt_letter = (MuttumAttemptLetter *)data;
+  MuttumLetter *letter = attempt_letter->letter;
+  guint letter_index = attempt_letter->index;
+
+  // Alphabet is used to store found letter count
+  guint *alphabet_index = g_new(guint, 1);
+  MuttumLetterPrivate *alphabet = NULL;
+  if (g_ptr_array_find_with_equal_func(
+          self->alphabet, letter,
+          muttum_engine_compare_letter_private_with_letter, alphabet_index)) {
+    alphabet = g_ptr_array_index(self->alphabet, *alphabet_index);
+  }
+  g_free(alphabet_index);
+  g_return_if_fail(alphabet);
+
+  if (self->word->str[letter_index] != letter->letter) {
+    if (alphabet->found < alphabet->position->len) {
+      letter->state = MUTTUM_LETTER_PRESENT;
+      if (alphabet->state != MUTTUM_LETTER_WELL_PLACED) {
+        alphabet->state = MUTTUM_LETTER_PRESENT;
+      }
+      alphabet->found++;
+    } else {
+      letter->state = MUTTUM_LETTER_NOT_PRESENT;
+      if (alphabet->state == MUTTUM_LETTER_UNKOWN) {
+        alphabet->state = MUTTUM_LETTER_NOT_PRESENT;
+      }
+    }
+  }
+}
+/**
  * muttum_engine_validate:
  *
  * Action to call when a player wants to validate the word on the current attempt.
@@ -453,28 +524,24 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
 
   MuttumEngineClass* klass = MUTTUM_ENGINE_GET_CLASS(self);
 
-  GPtrArray *attempt = muttum_board_get_attempt(self->board, self->current_attempt);
+  MuttumAttempt *attempt =
+      muttum_board_get_attempt(self->board, self->current_attempt);
   g_return_if_fail(attempt);
-
-  GString *word = g_string_new(NULL);
 
   if (self->current_attempt > MUTTUM_ENGINE_N_ATTEMPTS  || self->state != MUTTUM_ENGINE_STATE_CONTINUE) {
     return;
   }
 
-  // Ensure all letters were given
-  for (guint letter_index = 0; letter_index < attempt->len; letter_index += 1) {
-    MuttumLetter *letter = g_ptr_array_index(attempt, letter_index);
-    g_string_append_c(word, letter->letter);
+  GString *word = muttum_attempt_get_filled_letters(attempt);
 
-    if (letter->letter == MUTTUM_LETTER_NULL) {
-      g_string_free(word, TRUE);
-      g_set_error_literal(
-          error, MUTTUM_ENGINE_ERROR,
-          MUTTUM_ENGINE_ERROR_LINE_INCOMPLETE,
-          _("You must fill all letters."));
-      return;
-    }
+  // Ensure all letters were given
+  //
+  if (self->n_letters != g_utf8_strlen(word->str, -1)) {
+    g_string_free(word, TRUE);
+    g_set_error_literal(error, MUTTUM_ENGINE_ERROR,
+                        MUTTUM_ENGINE_ERROR_LINE_INCOMPLETE,
+                        _("You must fill all letters."));
+    return;
   }
 
   // Check if the given word exists in dictionary
@@ -518,62 +585,30 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
   // Validate state for each letter on current attempt
 
   // First pass find all well placed letters
-  guint well_placed = 0;
-  for (guint letter_index = 0; letter_index < attempt->len; letter_index += 1) {
-    MuttumLetter *letter = g_ptr_array_index(attempt, letter_index);
+  guint *well_placed = g_new(guint, 1);
+  *well_placed = 0;
 
-    // Alphabet is used to store found letter count
-    guint* alphabet_index = g_new(guint, 1);
-    MuttumLetterPrivate *alphabet = NULL;
-    if (g_ptr_array_find_with_equal_func(self->alphabet, letter,
-          muttum_engine_compare_letter_private_with_letter,
-          alphabet_index)) {
-      alphabet = g_ptr_array_index(self->alphabet, *alphabet_index);
-    }
-    g_return_if_fail(alphabet);
+  UserDataValidate *user_data = g_new(UserDataValidate, 1);
+  user_data->engine = self;
+  user_data->n_well_placed_letters = well_placed;
 
-    if (self->word->str[letter_index] == letter->letter) {
-      letter->state = MUTTUM_LETTER_WELL_PLACED;
-      alphabet->state = MUTTUM_LETTER_WELL_PLACED;
-      alphabet->found++;
-      well_placed++;
-    }
-  }
+  muttum_attempt_update_foreach_letter(
+      attempt, muttum_engine_validate_find_well_placed_letters, user_data);
 
-  if (well_placed == attempt->len) {
+  guint well_placed_letters =
+      *well_placed; /* Copy well placed count in a local variable to free
+                       pointers used by the loop */
+  g_free(well_placed);
+  g_free(user_data);
+
+  if (well_placed_letters == self->n_letters) {
     self->state = MUTTUM_ENGINE_STATE_WON;
     return;
   }
 
   // Second pass find all letters present but not well placed
-  for (guint letter_index = 0; letter_index < attempt->len; letter_index += 1) {
-    MuttumLetter *letter = g_ptr_array_index(attempt, letter_index);
-
-    // Alphabet is used to store found letter count
-    guint* alphabet_index = g_new(guint, 1);
-    MuttumLetterPrivate *alphabet = NULL;
-    if (g_ptr_array_find_with_equal_func(self->alphabet, letter,
-          muttum_engine_compare_letter_private_with_letter,
-          alphabet_index)) {
-      alphabet = g_ptr_array_index(self->alphabet, *alphabet_index);
-    }
-    g_return_if_fail(alphabet);
-
-    if (self->word->str[letter_index] != letter->letter) {
-      if (alphabet->found < alphabet->position->len) {
-        letter->state = MUTTUM_LETTER_PRESENT;
-        if (alphabet->state != MUTTUM_LETTER_WELL_PLACED) {
-          alphabet->state = MUTTUM_LETTER_PRESENT;
-        }
-        alphabet->found++;
-      } else {
-        letter->state = MUTTUM_LETTER_NOT_PRESENT;
-        if (alphabet->state == MUTTUM_LETTER_UNKOWN) {
-          alphabet->state = MUTTUM_LETTER_NOT_PRESENT;
-        }
-      }
-    }
-  }
+  muttum_attempt_update_foreach_letter(
+      attempt, muttum_engine_validate_find_present_letters, self);
 
   // Move to next attempt
   self->current_attempt++;
@@ -589,7 +624,7 @@ void muttum_engine_validate(MuttumEngine *self, GError **error) {
 /**
  * muttum_engine_get_current_attempt:
  *
- * Return value: the 0-based attempt number currently played.
+ * Return value: the attempt number currently played.
  */
 guint muttum_engine_get_current_attempt (MuttumEngine *self) {
   g_return_val_if_fail(MUTTUM_IS_ENGINE(self), -1);
@@ -599,7 +634,8 @@ guint muttum_engine_get_current_attempt (MuttumEngine *self) {
 /**
  * muttum_engine_get_game_state:
  *
- * Return value: The state of the current game represented by `MuttumEngineState`.
+ * Return value: The state of the current game represented by
+ * #MuttumEngineState.
  */
 MuttumEngineState muttum_engine_get_game_state(MuttumEngine *self) {
   g_return_val_if_fail(MUTTUM_IS_ENGINE(self), -1);

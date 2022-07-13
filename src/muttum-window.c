@@ -18,6 +18,8 @@
 
 #include <gtk/gtkcssprovider.h>
 #include <glib/gi18n.h>
+#include "muttum-attempt.h"
+#include "muttum-board.h"
 #include "muttum-config.h"
 #include "muttum-window.h"
 #include "muttum-engine.h"
@@ -26,6 +28,15 @@ typedef struct {
   GtkLabel *label;
   MuttumLetter *letter;
 } labelData;
+
+typedef struct {
+  MuttumWindow *window;
+  guint board_n_letters;
+  guint* longest_delay; /* This is a pointer to share value update between callback calls*/
+  gboolean apply_delay;
+  guint delay_on_attempt_number;
+  guint attempt_number;
+} DisplayUserData;
 
 static void muttum_window_display_board (
     MuttumWindow* self,
@@ -126,8 +137,10 @@ muttum_window_action_new_game (
   MuttumWindow *self = MUTTUM_WINDOW (sender);
 
   // Reset Game Grid
-  GPtrArray* board = muttum_engine_get_board_state(self->engine);
-  for (guint i = 0; i < board->len; i += 1) {
+  guint n_letters;
+  MuttumBoard* board = muttum_engine_get_board_state(self->engine);
+  g_object_get(board, "n-letters", &n_letters, NULL);
+  for (guint i = 0; i < n_letters; i += 1) {
     gtk_grid_remove_row(self->game_grid, 0);
   }
 
@@ -199,53 +212,90 @@ static gboolean muttum_window_terminate_validation (gpointer user_data) {
 }
 
 static void
-muttum_window_display_board (
-    MuttumWindow *self,
-    gboolean apply_delay,
-    guint delay_on_row)
-{
-  g_return_if_fail(MUTTUM_IS_WINDOW(self));
+muttum_window_display_letter(gpointer data, gpointer user_data) {
+  DisplayUserData *display_user_data = ((DisplayUserData *)user_data);
 
-  GPtrArray* board = muttum_engine_get_board_state(self->engine);
+  // Read user_data
+  MUTTUM_IS_WINDOW(display_user_data->window);
+  MuttumWindow *self = display_user_data->window;
+  guint *longest_delay = display_user_data->longest_delay;
+  guint delay_on_attempt_number = display_user_data->delay_on_attempt_number;
+  gboolean apply_delay = display_user_data->apply_delay;
+  guint attempt_number = display_user_data->attempt_number;
+  guint grid_row_index = attempt_number - 1;
 
-  guint longest_delay = 0;
-  for (guint row_index = 0; row_index < board->len; row_index +=1 ) {
-    GPtrArray *row = g_ptr_array_index(board, row_index);
-    for (guint column_index = 0; column_index < row->len; column_index += 1) {
-      MuttumLetter *letter = g_ptr_array_index(row, column_index);
+  // Read data
+  MuttumAttemptLetter *attempt_letter = ((MuttumAttemptLetter *)data);
+  MuttumLetter *letter = muttum_letter_copy(attempt_letter->letter, NULL);
+  guint letter_index = attempt_letter->index;
 
-      GtkWidget* child = gtk_grid_get_child_at(self->game_grid, column_index, row_index);
-      if (!child) {
-        child = gtk_label_new(NULL);
-        gtk_widget_add_css_class(child, "card");
-        gtk_grid_attach(self->game_grid, child, column_index, row_index, 1, 1);
-      }
+  GtkWidget* child = gtk_grid_get_child_at(self->game_grid, letter_index, grid_row_index);
+  if (!child) {
+    child = gtk_label_new(NULL);
+    gtk_widget_add_css_class(child, "card");
+    gtk_grid_attach(self->game_grid, child, letter_index, grid_row_index, 1, 1);
+  }
 
-      labelData *label_data = g_new(labelData, 1);
-      label_data->label = GTK_LABEL(child);
-      label_data->letter = letter;
+  labelData *label_data = g_new(labelData, 1);
+  label_data->label = GTK_LABEL(child);
+  label_data->letter = letter;
 
-      if (self->is_validating && apply_delay
-          && (row_index == delay_on_row || row_index == delay_on_row + 1)) {
-        guint delay = 200 * column_index + 200 * row->len * (row_index - delay_on_row);
-        // Delay display of all letters on delay row
-        if (row_index == delay_on_row) {
-          g_timeout_add(delay, muttum_window_set_label_data, label_data);
-        } else {
-          // On row just after, only the first letter need to be delayed
-          if (column_index == 0) {
-            g_timeout_add(delay, muttum_window_set_label_data, label_data);
-            longest_delay = delay + 200;
-          } else {
-            muttum_window_set_label_data(label_data);
-          }
-        }
+  if (self->is_validating && apply_delay
+      && (attempt_number == delay_on_attempt_number || attempt_number == delay_on_attempt_number + 1)) {
+    guint delay = 200 * (letter_index + display_user_data->board_n_letters * (attempt_number - delay_on_attempt_number));
+    // Delay display of all letters on delay row
+    if (attempt_number == delay_on_attempt_number) {
+      g_timeout_add(delay, muttum_window_set_label_data, label_data);
+    } else {
+      // On row just after, only the first letter need to be delayed
+      if (letter_index == 0) {
+        g_timeout_add(delay, muttum_window_set_label_data, label_data);
+        *longest_delay = delay + 200;
       } else {
         muttum_window_set_label_data(label_data);
       }
-
     }
+  } else {
+    muttum_window_set_label_data(label_data);
   }
+}
+
+static void
+muttum_window_display_attempt(gpointer data, gpointer user_data) {
+  DisplayUserData *display_user_data = ((DisplayUserData *)user_data);
+
+  MUTTUM_IS_WINDOW(display_user_data->window);
+
+  MuttumBoardAttempt *board_attempt = ((MuttumBoardAttempt *)data);
+  MuttumAttempt *attempt = board_attempt->attempt;
+
+  // Add received attempt information
+  display_user_data->attempt_number = board_attempt->number;
+
+  muttum_attempt_foreach_letter(attempt, muttum_window_display_letter, display_user_data);
+}
+
+static void
+muttum_window_display_board (
+    MuttumWindow *self,
+    gboolean apply_delay,
+    guint delay_on_attempt_number)
+{
+  g_return_if_fail(MUTTUM_IS_WINDOW(self));
+
+  MuttumBoard* board = muttum_engine_get_board_state(self->engine);
+  guint board_n_letters = 0;
+  g_object_get(board, "n-letters", &board_n_letters, NULL);
+
+  guint longest_delay = 0;
+  DisplayUserData* user_data = g_new(DisplayUserData, 1);
+  user_data->window = self;
+  user_data->board_n_letters = board_n_letters;
+  user_data->longest_delay = &longest_delay;
+  user_data->apply_delay = apply_delay;
+  user_data->delay_on_attempt_number = delay_on_attempt_number;
+
+  muttum_board_for_each_attempt(board, muttum_window_display_attempt, user_data);
 
   // Terminate validation with the current longest delay
   g_timeout_add(longest_delay, muttum_window_terminate_validation, self);
@@ -333,7 +383,7 @@ muttum_window_on_key_released (
       adw_toast_overlay_add_toast(window->toast_overlay, toast);
       window->is_validating = FALSE;
     } else {
-      muttum_window_display_board(window, TRUE, current_attempt - 1);
+      muttum_window_display_board(window, TRUE, current_attempt);
     }
     gtk_widget_grab_focus(widget);
   }

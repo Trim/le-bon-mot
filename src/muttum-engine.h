@@ -108,7 +108,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
  * Public method definitions.
  * */
 
-GPtrArray* muttum_engine_get_board_state (MuttumEngine *self);
+MuttumBoard* muttum_engine_get_board_state (MuttumEngine *self);
 
 GPtrArray* muttum_engine_get_alphabet_state (MuttumEngine *self);
 

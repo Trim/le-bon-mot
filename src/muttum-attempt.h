@@ -1,6 +1,6 @@
-/* muttum-board.h
+/* muttum-attempt.h
  *
- * Copyright 2022 Adrien Dorsaz
+ * Copyright 2022 Adrien Dorsaz <adrien@adorsaz.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,29 +21,27 @@
 #include <glib-2.0/glib.h>
 #include <glib-object.h>
 
-#include "muttum-attempt.h"
 #include "muttum-letter.h"
 
 G_BEGIN_DECLS
 
-#define MUTTUM_TYPE_BOARD (muttum_board_get_type())
+#define MUTTUM_TYPE_ATTEMPT (muttum_attempt_get_type())
 
-G_DECLARE_FINAL_TYPE(MuttumBoard, muttum_board, MUTTUM, BOARD, GObject);
+G_DECLARE_FINAL_TYPE(MuttumAttempt, muttum_attempt, MUTTUM, ATTEMPT, GObject);
 
 /*
  * Public structures
  */
 
 typedef struct {
-  MuttumAttempt *attempt;
-  guint number;
-} MuttumBoardAttempt;
+  MuttumLetter *letter;
+  guint index;
+} MuttumAttemptLetter;
 
 /*
  * Public method definitions.
  */
 
-void muttum_board_for_each_attempt(MuttumBoard *self, GFunc func,
-                                   gpointer user_data);
+void muttum_attempt_foreach_letter(MuttumAttempt* self, GFunc func, gpointer user_data);
 
 G_END_DECLS

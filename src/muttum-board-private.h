@@ -19,15 +19,16 @@
 #pragma once
 
 #include "muttum-board.h"
+#include "muttum-attempt-private.h"
 
 /*
  * Private Method Definition
  * */
 
-GPtrArray *muttum_board_get_data(MuttumBoard *board);
+MuttumBoard *muttum_board_new(guint n_attempts, guint n_letters);
 
-GPtrArray *muttum_board_get_attempt(MuttumBoard *board,
-                                    const guint attempt_number);
+MuttumAttempt *muttum_board_get_attempt(MuttumBoard *board,
+                                        const guint attempt_number);
 
 void muttum_board_add_letter(MuttumBoard *board, const guint attempt_number,
                              const char letter);

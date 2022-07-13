@@ -1,6 +1,6 @@
 /* muttum-letter.h
  *
- * Copyright 2022 Adrien Dorsaz
+ * Copyright 2022 Adrien Dorsaz <adrien@adorsaz.ch>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -43,3 +43,5 @@ typedef struct {
   gchar letter;
   MuttumLetterState state;
 } MuttumLetter;
+
+gpointer muttum_letter_copy(gconstpointer src, G_GNUC_UNUSED gpointer data);

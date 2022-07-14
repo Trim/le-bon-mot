@@ -96,7 +96,7 @@ muttum_engine_dispose (GObject *gobject)
   MuttumEngine *self = MUTTUM_ENGINE(gobject);
 
   g_ptr_array_unref(self->alphabet);
-  g_object_unref(self->board);
+  g_clear_object(&self->board);
 
   G_OBJECT_CLASS (muttum_engine_parent_class)->dispose (gobject);
 }

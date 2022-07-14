@@ -28,7 +28,7 @@ struct _MuttumAttempt {
   GObject parent_instance;
 
   // Attempt properties
-  GPtrArray *data;
+  GPtrArray *letters;
   guint n_letters;
 };
 
@@ -72,10 +72,19 @@ static void muttum_attempt_constructed(GObject *obj) {
     MuttumLetter *letter = g_new(MuttumLetter, 1);
     letter->letter = MUTTUM_LETTER_NULL;
     letter->state = MUTTUM_LETTER_UNKOWN;
-    g_ptr_array_add(self->data, letter);
+    g_ptr_array_add(self->letters, letter);
   }
 
   G_OBJECT_CLASS(muttum_attempt_parent_class)->constructed(obj);
+}
+
+static void muttum_attempt_dispose (GObject *gobject) {
+  MUTTUM_IS_ATTEMPT(gobject);
+  MuttumAttempt *self = MUTTUM_ATTEMPT(gobject);
+
+  g_ptr_array_unref(self->letters);
+
+  G_OBJECT_CLASS(muttum_attempt_parent_class)->dispose (gobject);
 }
 
 static void muttum_attempt_class_init(MuttumAttemptClass *klass) {
@@ -85,6 +94,8 @@ static void muttum_attempt_class_init(MuttumAttemptClass *klass) {
   object_class->get_property = muttum_attempt_get_property;
 
   object_class->constructed = muttum_attempt_constructed;
+
+  object_class->dispose = muttum_attempt_dispose;
 
   /**
    * MuttumAttempt:n-letters:
@@ -102,7 +113,7 @@ static void muttum_attempt_class_init(MuttumAttemptClass *klass) {
 }
 
 static void muttum_attempt_init(MuttumAttempt *self) {
-  self->data = g_ptr_array_new_with_free_func(g_free);
+  self->letters = g_ptr_array_new_with_free_func(g_free);
 }
 
 /**
@@ -142,9 +153,9 @@ void muttum_attempt_add_letter(MuttumAttempt *self, const char letter) {
   g_return_if_fail(MUTTUM_IS_ATTEMPT(self));
 
   char first_letter;
-  for (guint letter_index = 0; letter_index < self->data->len;
+  for (guint letter_index = 0; letter_index < self->letters->len;
        letter_index += 1) {
-    MuttumLetter *attempt_letter = g_ptr_array_index(self->data, letter_index);
+    MuttumLetter *attempt_letter = g_ptr_array_index(self->letters, letter_index);
     if (letter_index == 0) {
       first_letter = attempt_letter->letter;
     }
@@ -170,9 +181,9 @@ void muttum_attempt_add_letter(MuttumAttempt *self, const char letter) {
 void muttum_attempt_remove_letter(MuttumAttempt *self) {
   g_return_if_fail(MUTTUM_IS_ATTEMPT(self));
 
-  for (guint letter_index = self->data->len - 1;
-       letter_index <= self->data->len; letter_index -= 1) {
-    MuttumLetter *letter = g_ptr_array_index(self->data, letter_index);
+  for (guint letter_index = self->letters->len - 1;
+       letter_index <= self->letters->len; letter_index -= 1) {
+    MuttumLetter *letter = g_ptr_array_index(self->letters, letter_index);
     if (letter->letter != MUTTUM_LETTER_NULL && letter_index != 0) {
       letter->letter = MUTTUM_LETTER_NULL;
       letter->state = MUTTUM_LETTER_UNKOWN;
@@ -194,8 +205,8 @@ void muttum_attempt_foreach_letter(MuttumAttempt *self, GFunc func,
   g_return_if_fail(MUTTUM_IS_ATTEMPT(self));
 
   for (guint letter_index = 0;
-       letter_index < self->data->len; letter_index += 1) {
-    MuttumLetter *letter = g_ptr_array_index(self->data, letter_index);
+       letter_index < self->letters->len; letter_index += 1) {
+    MuttumLetter *letter = g_ptr_array_index(self->letters, letter_index);
 
     MuttumAttemptLetter *attempt_letter = g_new(MuttumAttemptLetter, 1);
     attempt_letter->letter = muttum_letter_copy(letter, NULL);
@@ -219,8 +230,8 @@ void muttum_attempt_update_foreach_letter(MuttumAttempt* self, GFunc func, gpoin
   g_return_if_fail(MUTTUM_IS_ATTEMPT(self));
 
   for (guint letter_index = 0;
-       letter_index < self->data->len; letter_index += 1) {
-    MuttumLetter *letter = g_ptr_array_index(self->data, letter_index);
+       letter_index < self->letters->len; letter_index += 1) {
+    MuttumLetter *letter = g_ptr_array_index(self->letters, letter_index);
 
     MuttumAttemptLetter *attempt_letter = g_new(MuttumAttemptLetter, 1);
     attempt_letter->letter = letter;
@@ -240,9 +251,9 @@ void muttum_attempt_update_foreach_letter(MuttumAttempt* self, GFunc func, gpoin
  */
 GString* muttum_attempt_get_filled_letters(MuttumAttempt *self) {
   GString *word = g_string_new(NULL);
-  for (guint letter_index = 0; letter_index < self->data->len;
+  for (guint letter_index = 0; letter_index < self->letters->len;
        letter_index += 1) {
-    MuttumLetter *letter = g_ptr_array_index(self->data, letter_index);
+    MuttumLetter *letter = g_ptr_array_index(self->letters, letter_index);
 
     // If a "null" letter is found, all next ones will be null too
     if (letter->letter == MUTTUM_LETTER_NULL) {

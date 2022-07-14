@@ -32,7 +32,7 @@ struct _MuttumBoard {
   GObject parent_instance;
 
   // Board properties
-  GPtrArray *data;
+  GPtrArray *attempts;
   guint n_attempts;
   guint n_letters;
 };
@@ -82,10 +82,20 @@ muttum_board_constructed (GObject *obj)
   for (guint attempt_index = 0; attempt_index < self->n_attempts;
        attempt_index += 1) {
     MuttumAttempt *attempt = muttum_attempt_new(self->n_letters);
-    g_ptr_array_add(self->data, attempt);
+    g_ptr_array_add(self->attempts, attempt);
   }
 
   G_OBJECT_CLASS (muttum_board_parent_class)->constructed (obj);
+}
+
+static void
+muttum_board_dispose (GObject *obj) {
+  MUTTUM_IS_BOARD(obj);
+  MuttumBoard *self = MUTTUM_BOARD(obj);
+
+  g_ptr_array_unref(self->attempts);
+
+  G_OBJECT_CLASS(muttum_board_parent_class)->dispose (obj);
 }
 
 static void muttum_board_class_init(MuttumBoardClass *klass) {
@@ -95,6 +105,8 @@ static void muttum_board_class_init(MuttumBoardClass *klass) {
   object_class->get_property = muttum_board_get_property;
 
   object_class->constructed = muttum_board_constructed;
+
+  object_class->dispose = muttum_board_dispose;
 
   /**
    * MuttumBoard:n-attempts:
@@ -124,7 +136,7 @@ static void muttum_board_class_init(MuttumBoardClass *klass) {
 }
 
 static void muttum_board_init(MuttumBoard *self) {
-  self->data = g_ptr_array_new_with_free_func(g_free);
+  self->attempts = g_ptr_array_new_with_free_func(g_object_unref);
 }
 
 /**
@@ -174,7 +186,7 @@ MuttumAttempt *muttum_board_get_attempt(MuttumBoard *self,
   g_assert(attempt_number >= 1);
   g_assert(attempt_number <= self->n_attempts);
 
-  return g_ptr_array_index(self->data, attempt_number - 1);
+  return g_ptr_array_index(self->attempts, attempt_number - 1);
 }
 
 /**
@@ -190,7 +202,7 @@ void muttum_board_add_letter(MuttumBoard *self, const guint attempt_number,
   g_assert(attempt_number >= 1);
   g_assert(attempt_number <= self->n_attempts);
 
-  MuttumAttempt *attempt = g_ptr_array_index(self->data, attempt_number - 1);
+  MuttumAttempt *attempt = g_ptr_array_index(self->attempts, attempt_number - 1);
   muttum_attempt_add_letter(attempt, letter);
 }
 
@@ -205,7 +217,7 @@ void muttum_board_remove_letter(MuttumBoard *self, const guint attempt_number) {
   g_assert(attempt_number >= 1);
   g_assert(attempt_number <= self->n_attempts);
 
-  MuttumAttempt *attempt = g_ptr_array_index(self->data, attempt_number - 1);
+  MuttumAttempt *attempt = g_ptr_array_index(self->attempts, attempt_number - 1);
   muttum_attempt_remove_letter(attempt);
 }
 
@@ -222,8 +234,8 @@ void muttum_board_for_each_attempt(MuttumBoard *self, GFunc func,
   g_return_if_fail(MUTTUM_IS_BOARD(self));
 
   for (guint attempt_index = 0;
-       attempt_index < self->data->len; attempt_index += 1) {
-    MuttumAttempt *attempt = g_ptr_array_index(self->data, attempt_index);
+       attempt_index < self->attempts->len; attempt_index += 1) {
+    MuttumAttempt *attempt = g_ptr_array_index(self->attempts, attempt_index);
 
     MuttumBoardAttempt *board_attempt = g_new(MuttumBoardAttempt, 1);
     board_attempt->attempt = attempt; /* TODO: use a copy attempt to avoid undesired changes */
